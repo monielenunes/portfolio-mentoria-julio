@@ -1,0 +1,9 @@
+[
+  {
+    "id": "1",
+    "name": "Administrador MimoRH",
+    "email": "admin@mimorh.local",
+    "password": "$2b$10$YB3TCl16bK6hHOkiFZCoT.1EAAgTzZSLOavtsfsdBEfFjjhIhYWoG",
+    "role": "admin"
+  }
+]

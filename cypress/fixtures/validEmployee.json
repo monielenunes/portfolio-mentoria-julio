@@ -1,0 +1,6 @@
+{
+  "name": "Maria Silva",
+  "email": "maria@empresa.test",
+  "birthDate": "1995-09-15",
+  "address": { "street": "Rua das Flores", "number": "100", "city": "São Paulo" }
+}

@@ -1,0 +1,27 @@
+name: API CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  cypress-api:
+    runs-on: ubuntu-latest
+    env:
+      JWT_SECRET: mimorh-ci-test-secret
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm start > /tmp/mimorh-api.log 2>&1 &
+      - run: |
+          for i in {1..30}; do
+            curl --fail http://localhost:3000/api/health && exit 0
+            sleep 1
+          done
+          cat /tmp/mimorh-api.log
+          exit 1
+      - run: npx cypress run

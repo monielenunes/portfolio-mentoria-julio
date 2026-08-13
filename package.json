@@ -1,0 +1,28 @@
+{
+  "name": "api-porfolio-mentoria",
+  "version": "1.0.0",
+  "description": "MimoRH API - projeto de avaliação de QA",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "test": "npm run cy:run",
+    "cy:open": "cypress open",
+    "cy:run": "cypress run",
+    "test:api": "cypress run --spec 'cypress/e2e/api/**/*.cy.js'"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.3",
+    "swagger-ui-express": "^5.0.1"
+  },
+  "devDependencies": {
+    "cypress": "^15.20.1"
+  }
+}
