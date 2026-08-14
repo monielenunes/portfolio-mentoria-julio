@@ -1,9 +1,3 @@
-Sim. E como você quer algo **simples, profissional e sem parecer cópia**, eu faria o `07-casos-de-teste-da-api.md` com uma estrutura mais enxuta: uma tabela de identificação + uma ficha curta para cada caso, agrupada por módulo.
-
-Abaixo está o **arquivo inteiro**, pronto para você colar no VS Code em:
-
-`docs/07-casos-de-teste-da-api.md`
-
 ```md
 # 07. Casos de Teste da API — MimoRH
 
@@ -917,13 +911,3 @@ O resultado da execução da suíte deve ser considerado separado da definição
 
 O caso que apresentou falha deve ser investigado antes de considerar a regressão totalmente aprovada.
 ```
-
-### Só uma observação importante
-
-Eu **não colocaria esse documento como uma cópia visual do exemplo**. Esse formato acima já fica diferente o suficiente: é mais direto, com fichas curtas e agrupamento por domínio.
-
-E como você mesma falou que **é só uma avaliação**, eu não gastaria horas tentando deixar isso perfeito. Depois de colocar esse arquivo, eu faria:
-
-**03 regras → 06 plano → 07 casos → corrigir o 1 teste → commit → acabou.** 😂
-
-Só cuidado com uma coisa: alguns dos últimos CTs (`064–066`) representam justamente as transições de cancelamento que apareceram como lacuna na revisão anterior. **Antes de commitar, vale conferir se esses três realmente existem nos seus `shipments.cy.js` atuais.** Se não existirem, não devemos documentá-los como testes automatizados.
