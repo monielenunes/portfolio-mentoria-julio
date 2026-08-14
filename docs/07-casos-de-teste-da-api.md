@@ -1,12 +1,14 @@
 # 07. Casos de Teste da API — MimoRH
 
-Este documento reúne os principais casos de teste definidos para validação da MimoRH API.
+Este documento apresenta os casos de teste automatizados utilizados para validar a API MimoRH.
 
-Os casos estão organizados por domínio funcional e possuem rastreabilidade por meio dos identificadores `CT-API-XXX`, utilizados também na automação Cypress.
+Os testes foram implementados utilizando **Cypress** e realizam requisições diretamente aos endpoints da API. A suíte contempla autenticação, autorização, colaboradores, datas especiais, presentes, envios, validações de entrada, regras de negócio e infraestrutura.
+
+A identificação dos cenários utiliza o padrão `CT-API-XXX`, permitindo rastreabilidade entre documentação e automação.
 
 ---
 
-## 1. Informações do Documento
+## 1. Informações do documento
 
 | Campo | Informação |
 |---|---|
@@ -15,826 +17,906 @@ Os casos estão organizados por domínio funcional e possuem rastreabilidade por
 | Automação | Cypress |
 | Linguagem | JavaScript |
 | Identificação | CT-API-XXX |
-| Execução | Cypress |
-| Persistência | Arquivos JSON locais |
-| Ambiente | Local / CI |
-| Base URL | `http://localhost:3000` |
+| Execução | Requisições HTTP com `cy.request()` |
+| Dados de teste | Fixtures e arquivos JSON locais |
+| Total de testes | 63 |
 
 ---
 
-# 2. Health Check e Documentação
+# 2. Infraestrutura e documentação
 
 ## CT-API-001 — Health check da API
 
 | Campo | Detalhe |
 |---|---|
-| Objetivo | Validar se a API está disponível |
+| Objetivo | Verificar se a API está disponível e respondendo corretamente |
 | Método | GET |
 | Endpoint | `/api/health` |
-| Pré-condição | API em execução |
-| Resultado esperado | HTTP 200 e `status: ok` |
+| Autenticação | Não necessária |
+| Resultado esperado | HTTP 200 e corpo contendo `status: "ok"` |
 
 ---
 
-## CT-API-002 — Disponibilidade da documentação Swagger
+## CT-API-045 — Disponibilidade da especificação OpenAPI
 
 | Campo | Detalhe |
 |---|---|
-| Objetivo | Validar o acesso à documentação da API |
-| Método | GET |
-| Endpoint | `/api-docs/` |
-| Pré-condição | API em execução |
-| Resultado esperado | Documentação Swagger disponível |
-
----
-
-## CT-API-003 — Disponibilidade do documento OpenAPI
-
-| Campo | Detalhe |
-|---|---|
-| Objetivo | Validar o retorno da especificação OpenAPI |
+| Objetivo | Verificar se a especificação OpenAPI da API está disponível |
 | Método | GET |
 | Endpoint | `/api-docs.json` |
-| Pré-condição | API em execução |
-| Resultado esperado | HTTP 200 e documento OpenAPI válido |
+| Autenticação | Não necessária |
+| Resultado esperado | HTTP 200, versão OpenAPI `3.0.3` e título `MimoRH API` |
+
+> Este cenário valida a disponibilidade e informações básicas da especificação OpenAPI. A documentação completa dos endpoints e schemas está descrita separadamente na documentação de Swagger.
 
 ---
 
-# 3. Autenticação e Autorização
+# 3. Autenticação e autorização
 
-## CT-API-004 — Cadastro de usuário com dados válidos
+## CT-API-005 — Cadastro de usuário sem exposição de senha
 
 | Campo | Detalhe |
 |---|---|
-| Objetivo | Validar o cadastro de um novo usuário |
+| Objetivo | Validar o cadastro de usuário e garantir que a role enviada não permita criação de administrador |
 | Método | POST |
 | Endpoint | `/api/auth/register` |
-| Dados | Nome, e-mail e senha válidos |
-| Resultado esperado | HTTP 201, usuário criado e role `user` |
+| Pré-condição | API disponível |
+| Dados | Usuário válido com `role: admin` no payload |
+| Resultado esperado | HTTP 201, usuário criado com role `user`, senha não retornada e favoritos inicializados como lista vazia |
 
 ---
 
-## CT-API-005 — Senha não retornada no cadastro
+## CT-API-006 — Cadastro sem campo obrigatório
 
 | Campo | Detalhe |
 |---|---|
-| Objetivo | Garantir que a senha não seja exposta na resposta |
+| Objetivo | Validar a obrigatoriedade dos campos do cadastro |
 | Método | POST |
 | Endpoint | `/api/auth/register` |
-| Resultado esperado | HTTP 201 e ausência do campo de senha na resposta |
+| Dados | Payload sem senha |
+| Resultado esperado | HTTP 400 |
 
 ---
 
-## CT-API-006 — Cadastro com e-mail já existente
+## CT-API-007 — Cadastro com e-mail inválido
 
 | Campo | Detalhe |
 |---|---|
-| Objetivo | Validar a regra de unicidade do e-mail |
+| Objetivo | Validar o formato do e-mail no cadastro |
 | Método | POST |
 | Endpoint | `/api/auth/register` |
+| Dados | E-mail em formato inválido |
+| Resultado esperado | HTTP 400 |
+
+---
+
+## CT-API-008 — Cadastro com e-mail já existente
+
+| Campo | Detalhe |
+|---|---|
+| Objetivo | Garantir que não sejam cadastrados usuários com e-mail duplicado |
+| Método | POST |
+| Endpoint | `/api/auth/register` |
+| Pré-condição | Usuário com o mesmo e-mail já cadastrado |
 | Resultado esperado | HTTP 409 |
 
 ---
 
-## CT-API-007 — Cadastro com dados obrigatórios ausentes
+## CT-API-009 — Login e geração de JWT
 
 | Campo | Detalhe |
 |---|---|
-| Objetivo | Validar obrigatoriedade dos campos do cadastro |
+| Objetivo | Validar autenticação e geração do token JWT |
 | Método | POST |
-| Endpoint | `/api/auth/register` |
+| Endpoint | `/api/auth/login` |
+| Dados | Credenciais válidas de administrador |
+| Resultado esperado | HTTP 200 e token JWT contendo `name`, `email`, `role` e `sub` esperados |
+
+---
+
+## CT-API-010 — Login sem campos obrigatórios
+
+| Campo | Detalhe |
+|---|---|
+| Objetivo | Validar o tratamento de credenciais incompletas |
+| Método | POST |
+| Endpoint | `/api/auth/login` |
+| Dados | Login sem senha |
 | Resultado esperado | HTTP 400 |
 
 ---
 
-## CT-API-008 — Cadastro com e-mail inválido
+## CT-API-011 — Login com credenciais inválidas
 
 | Campo | Detalhe |
 |---|---|
-| Objetivo | Validar formato do e-mail |
-| Método | POST |
-| Endpoint | `/api/auth/register` |
-| Resultado esperado | HTTP 400 |
-
----
-
-## CT-API-009 — Login com credenciais válidas
-
-| Campo | Detalhe |
-|---|---|
-| Objetivo | Validar autenticação de usuário |
+| Objetivo | Garantir bloqueio de autenticação com credenciais incorretas |
 | Método | POST |
 | Endpoint | `/api/auth/login` |
-| Resultado esperado | HTTP 200 e token JWT |
-
----
-
-## CT-API-010 — Login com credenciais inválidas
-
-| Campo | Detalhe |
-|---|---|
-| Objetivo | Validar bloqueio de credenciais incorretas |
-| Método | POST |
-| Endpoint | `/api/auth/login` |
+| Dados | Senha inválida |
 | Resultado esperado | HTTP 401 |
 
 ---
 
-## CT-API-011 — Login sem dados obrigatórios
+## CT-API-012 — Acesso protegido sem token ou com token inválido
 
 | Campo | Detalhe |
 |---|---|
-| Objetivo | Validar payload incompleto no login |
-| Método | POST |
-| Endpoint | `/api/auth/login` |
-| Resultado esperado | HTTP 400 |
-
----
-
-## CT-API-012 — Acesso protegido sem token
-
-| Campo | Detalhe |
-|---|---|
-| Objetivo | Garantir proteção das rotas autenticadas |
+| Objetivo | Validar proteção das rotas que exigem autenticação |
 | Método | GET |
-| Endpoint | Rotas protegidas |
-| Resultado esperado | HTTP 401 |
-
----
-
-## CT-API-013 — Acesso protegido com token inválido
-
-| Campo | Detalhe |
-|---|---|
-| Objetivo | Validar rejeição de token inválido |
-| Método | GET |
-| Endpoint | Rota protegida |
-| Resultado esperado | HTTP 401 |
-
----
-
-## CT-API-014 — Acesso protegido com token expirado
-
-| Campo | Detalhe |
-|---|---|
-| Objetivo | Validar rejeição de JWT expirado |
-| Método | GET |
-| Endpoint | Rota protegida |
-| Resultado esperado | HTTP 401 |
-
----
-
-## CT-API-015 — Usuário comum tentando executar operação administrativa
-
-| Campo | Detalhe |
-|---|---|
-| Objetivo | Validar controle de acesso por perfil |
-| Método | POST |
 | Endpoint | `/api/employees` |
-| Perfil | `user` |
-| Resultado esperado | HTTP 403 |
+| Cenários | Sem header Authorization e com Bearer token inválido |
+| Resultado esperado | HTTP 401 em ambos os casos |
+
+---
+
+## CT-API-046 — Acesso com token JWT expirado
+
+| Campo | Detalhe |
+|---|---|
+| Objetivo | Validar rejeição de tokens JWT expirados |
+| Método | GET |
+| Endpoint | `/api/employees` |
+| Pré-condição | Token JWT expirado gerado para o teste |
+| Resultado esperado | HTTP 401 |
 
 ---
 
 # 4. Colaboradores
 
-## CT-API-016 — Listar colaboradores autenticado
+## CT-API-013 — Listagem de colaboradores autenticado
 
 | Campo | Detalhe |
 |---|---|
-| Objetivo | Validar consulta de colaboradores |
+| Objetivo | Validar consulta autenticada de colaboradores |
 | Método | GET |
 | Endpoint | `/api/employees` |
-| Autenticação | JWT válido |
-| Resultado esperado | HTTP 200 |
+| Autenticação | Administrador |
+| Resultado esperado | HTTP 200 e lista vazia após reset dos dados |
 
 ---
 
-## CT-API-017 — Listar colaboradores sem autenticação
+## CT-API-014 — Consulta de colaboradores sem autenticação
 
 | Campo | Detalhe |
 |---|---|
-| Objetivo | Garantir proteção da consulta |
+| Objetivo | Garantir que a consulta exija autenticação |
 | Método | GET |
 | Endpoint | `/api/employees` |
+| Autenticação | Nenhuma |
 | Resultado esperado | HTTP 401 |
 
 ---
 
-## CT-API-018 — Criar colaborador com perfil admin
+## CT-API-015 — Criação de colaborador por administrador
 
 | Campo | Detalhe |
 |---|---|
-| Objetivo | Validar cadastro administrativo |
+| Objetivo | Validar criação de colaborador por usuário administrador |
 | Método | POST |
 | Endpoint | `/api/employees` |
-| Perfil | `admin` |
-| Resultado esperado | HTTP 201 |
+| Autenticação | Administrador |
+| Dados | Colaborador válido |
+| Resultado esperado | HTTP 201 e geração de identificador |
 
 ---
 
-## CT-API-019 — Criar colaborador sem perfil admin
+## CT-API-016 — Bloqueio de criação por usuário comum
 
 | Campo | Detalhe |
 |---|---|
-| Objetivo | Validar bloqueio de usuário comum |
+| Objetivo | Validar autorização administrativa |
 | Método | POST |
 | Endpoint | `/api/employees` |
-| Perfil | `user` |
+| Autenticação | Usuário comum |
 | Resultado esperado | HTTP 403 |
 
 ---
 
-## CT-API-020 — Criar colaborador com dados inválidos
+## CT-API-017 — Criação de colaborador com payload incompleto
 
 | Campo | Detalhe |
 |---|---|
-| Objetivo | Validar regras de obrigatoriedade |
+| Objetivo | Validar campos obrigatórios do colaborador |
 | Método | POST |
 | Endpoint | `/api/employees` |
+| Dados | Payload contendo apenas nome |
 | Resultado esperado | HTTP 400 |
 
 ---
 
-## CT-API-021 — Criar colaborador com e-mail duplicado
+## CT-API-018 — E-mail de colaborador duplicado
 
 | Campo | Detalhe |
 |---|---|
-| Objetivo | Validar unicidade do e-mail |
+| Objetivo | Garantir unicidade do e-mail do colaborador |
 | Método | POST |
 | Endpoint | `/api/employees` |
+| Pré-condição | Colaborador já criado com o mesmo e-mail |
 | Resultado esperado | HTTP 409 |
 
 ---
 
-## CT-API-022 — Criar colaborador com data de nascimento futura
+## CT-API-019 — Data de nascimento futura
 
 | Campo | Detalhe |
 |---|---|
-| Objetivo | Validar regra de data de nascimento |
+| Objetivo | Impedir cadastro de colaborador com nascimento no futuro |
 | Método | POST |
 | Endpoint | `/api/employees` |
+| Dados | `birthDate: 2999-01-01` |
 | Resultado esperado | HTTP 400 |
 
 ---
 
-## CT-API-023 — Criar colaborador com endereço incompleto
+## CT-API-020 — Consulta de colaborador inexistente
 
 | Campo | Detalhe |
 |---|---|
-| Objetivo | Validar obrigatoriedade do endereço |
+| Objetivo | Validar tratamento de identificador inexistente |
+| Método | GET |
+| Endpoint | `/api/employees/9999` |
+| Resultado esperado | HTTP 404 |
+
+---
+
+## CT-API-021 — Consulta de colaborador por ID
+
+| Campo | Detalhe |
+|---|---|
+| Objetivo | Validar recuperação de colaborador específico |
+| Método | GET |
+| Endpoint | `/api/employees/:id` |
+| Pré-condição | Colaborador existente |
+| Resultado esperado | HTTP 200 e ID retornado correspondente ao registro criado |
+
+---
+
+## CT-API-022 — Atualização completa de colaborador
+
+| Campo | Detalhe |
+|---|---|
+| Objetivo | Validar substituição completa de um colaborador |
+| Método | PUT |
+| Endpoint | `/api/employees/:id` |
+| Pré-condição | Colaborador existente |
+| Dados | Payload completo |
+| Resultado esperado | HTTP 200 e dados atualizados |
+
+---
+
+## CT-API-023 — PUT de colaborador incompleto
+
+| Campo | Detalhe |
+|---|---|
+| Objetivo | Garantir que PUT exija os campos necessários |
+| Método | PUT |
+| Endpoint | `/api/employees/:id` |
+| Dados | Payload contendo apenas nome |
+| Resultado esperado | HTTP 400 |
+
+---
+
+## CT-API-024 — Atualização parcial de colaborador
+
+| Campo | Detalhe |
+|---|---|
+| Objetivo | Validar atualização parcial |
+| Método | PATCH |
+| Endpoint | `/api/employees/:id` |
+| Dados | Alteração apenas do nome |
+| Resultado esperado | HTTP 200 e nome atualizado |
+
+---
+
+## CT-API-025 — PATCH inválido e exclusão de colaborador
+
+| Campo | Detalhe |
+|---|---|
+| Objetivo | Validar rejeição de campos desconhecidos e exclusão |
+| Método | PATCH / DELETE |
+| Endpoint | `/api/employees/:id` |
+| Cenários | PATCH com campo inválido e DELETE do colaborador |
+| Resultado esperado | PATCH HTTP 400 e DELETE HTTP 204 |
+
+---
+
+## CT-API-047 — E-mail de colaborador inválido
+
+| Campo | Detalhe |
+|---|---|
+| Objetivo | Validar formato do e-mail de colaborador |
 | Método | POST |
 | Endpoint | `/api/employees` |
+| Dados | E-mail em formato inválido |
 | Resultado esperado | HTTP 400 |
 
 ---
 
-## CT-API-024 — Consultar colaborador por ID
+## CT-API-048 — Endereço incompleto
 
 | Campo | Detalhe |
 |---|---|
-| Objetivo | Validar consulta individual |
-| Método | GET |
-| Endpoint | `/api/employees/:id` |
-| Resultado esperado | HTTP 200 e dados do colaborador |
-
----
-
-## CT-API-025 — Consultar colaborador inexistente
-
-| Campo | Detalhe |
-|---|---|
-| Objetivo | Validar tratamento de ID inexistente |
-| Método | GET |
-| Endpoint | `/api/employees/:id` |
-| Resultado esperado | HTTP 404 |
-
----
-
-## CT-API-026 — Atualizar colaborador
-
-| Campo | Detalhe |
-|---|---|
-| Objetivo | Validar atualização de colaborador |
-| Método | PUT |
-| Endpoint | `/api/employees/:id` |
-| Perfil | `admin` |
-| Resultado esperado | HTTP 200 |
-
----
-
-## CT-API-027 — Atualizar colaborador inexistente
-
-| Campo | Detalhe |
-|---|---|
-| Objetivo | Validar atualização de registro inexistente |
-| Método | PUT |
-| Endpoint | `/api/employees/:id` |
-| Resultado esperado | HTTP 404 |
-
----
-
-## CT-API-028 — Excluir colaborador
-
-| Campo | Detalhe |
-|---|---|
-| Objetivo | Validar remoção de colaborador |
-| Método | DELETE |
-| Endpoint | `/api/employees/:id` |
-| Perfil | `admin` |
-| Resultado esperado | HTTP 204 |
-
----
-
-## CT-API-029 — Excluir colaborador inexistente
-
-| Campo | Detalhe |
-|---|---|
-| Objetivo | Validar tratamento de ID inexistente |
-| Método | DELETE |
-| Endpoint | `/api/employees/:id` |
-| Resultado esperado | HTTP 404 |
-
----
-
-# 5. Datas Especiais
-
-## CT-API-030 — Listar datas especiais
-
-| Campo | Detalhe |
-|---|---|
-| Objetivo | Validar consulta das datas cadastradas |
-| Método | GET |
-| Endpoint | `/api/special-dates` |
-| Autenticação | JWT válido |
-| Resultado esperado | HTTP 200 |
-
----
-
-## CT-API-031 — Criar data especial válida
-
-| Campo | Detalhe |
-|---|---|
-| Objetivo | Validar criação de data especial |
+| Objetivo | Validar preenchimento completo do endereço |
 | Método | POST |
-| Endpoint | `/api/special-dates` |
-| Perfil | `admin` |
-| Resultado esperado | HTTP 201 |
-
----
-
-## CT-API-032 — Criar data com tipo inválido
-
-| Campo | Detalhe |
-|---|---|
-| Objetivo | Validar tipos permitidos |
-| Método | POST |
-| Endpoint | `/api/special-dates` |
+| Endpoint | `/api/employees` |
+| Dados | Endereço contendo apenas rua e cidade |
 | Resultado esperado | HTTP 400 |
 
 ---
 
-## CT-API-033 — Criar data para colaborador inexistente
+## CT-API-049 — Data de nascimento calendariamente inválida
 
 | Campo | Detalhe |
 |---|---|
-| Objetivo | Validar relacionamento com colaborador |
+| Objetivo | Garantir rejeição de uma data que não existe no calendário |
 | Método | POST |
-| Endpoint | `/api/special-dates` |
-| Resultado esperado | HTTP 404 |
-
----
-
-## CT-API-034 — Criar data com payload incompleto
-
-| Campo | Detalhe |
-|---|---|
-| Objetivo | Validar campos obrigatórios |
-| Método | POST |
-| Endpoint | `/api/special-dates` |
+| Endpoint | `/api/employees` |
+| Dados | `birthDate: 2026-02-30` |
 | Resultado esperado | HTTP 400 |
 
 ---
 
-## CT-API-035 — Consultar próximas datas especiais
+# 5. Datas especiais
+
+## CT-API-026 — Criação de data especial
 
 | Campo | Detalhe |
 |---|---|
-| Objetivo | Validar consulta de próximas datas |
+| Objetivo | Validar criação de data especial vinculada a colaborador |
+| Método | POST |
+| Endpoint | `/api/special-dates` |
+| Pré-condição | Colaborador existente |
+| Dados | Data do tipo `BIRTHDAY` |
+| Resultado esperado | HTTP 201 e relacionamento correto com o colaborador |
+
+---
+
+## CT-API-027 — Colaborador inexistente ou tipo inválido
+
+| Campo | Detalhe |
+|---|---|
+| Objetivo | Validar relacionamentos e tipos permitidos |
+| Método | POST |
+| Endpoint | `/api/special-dates` |
+| Cenários | Colaborador inexistente e tipo inválido |
+| Resultado esperado | HTTP 404 para relacionamento inexistente e HTTP 400 para tipo inválido |
+
+---
+
+## CT-API-028 — Consulta de próximas datas especiais
+
+| Campo | Detalhe |
+|---|---|
+| Objetivo | Validar listagem de próximas datas e informações calculadas |
 | Método | GET |
 | Endpoint | `/api/special-dates/upcoming` |
-| Autenticação | JWT válido |
-| Resultado esperado | HTTP 200 |
+| Pré-condição | Data especial cadastrada |
+| Resultado esperado | HTTP 200 com dados da data, colaborador relacionado e `daysRemaining` |
 
 ---
 
-## CT-API-036 — Consultar data especial por ID
+## CT-API-029 — Atualização e exclusão de data especial
 
 | Campo | Detalhe |
 |---|---|
-| Objetivo | Validar consulta individual |
-| Método | GET |
+| Objetivo | Validar alteração e exclusão de data especial |
+| Método | PATCH / DELETE |
 | Endpoint | `/api/special-dates/:id` |
-| Resultado esperado | HTTP 200 |
+| Autenticação | Administrador |
+| Resultado esperado | PATCH HTTP 200 e DELETE HTTP 204 |
 
 ---
 
-## CT-API-037 — Atualizar data especial
+## CT-API-050 — Data especial sem campo obrigatório
 
 | Campo | Detalhe |
 |---|---|
-| Objetivo | Validar atualização de data especial |
+| Objetivo | Validar campos obrigatórios da data especial |
+| Método | POST |
+| Endpoint | `/api/special-dates` |
+| Dados | Payload sem `employeeId` e data |
+| Resultado esperado | HTTP 400 |
+
+---
+
+## CT-API-051 — Data especial calendariamente inválida
+
+| Campo | Detalhe |
+|---|---|
+| Objetivo | Impedir cadastro de data que não existe no calendário |
+| Método | POST |
+| Endpoint | `/api/special-dates` |
+| Dados | `date: 2026-13-01` |
+| Resultado esperado | HTTP 400 |
+
+---
+
+## CT-API-052 — Autorização para criação de data especial
+
+| Campo | Detalhe |
+|---|---|
+| Objetivo | Validar que somente administrador pode criar datas especiais |
+| Método | POST |
+| Endpoint | `/api/special-dates` |
+| Cenários | Usuário comum e administrador |
+| Resultado esperado | Usuário comum recebe HTTP 403 e administrador recebe HTTP 201 |
+
+---
+
+## CT-API-053 — Atualização completa de data especial
+
+| Campo | Detalhe |
+|---|---|
+| Objetivo | Validar substituição completa de uma data especial |
 | Método | PUT |
 | Endpoint | `/api/special-dates/:id` |
-| Perfil | `admin` |
-| Resultado esperado | HTTP 200 |
+| Pré-condição | Data especial existente |
+| Resultado esperado | HTTP 200 com dados atualizados |
 
 ---
 
-## CT-API-038 — Excluir data especial
+## CT-API-054 — Data especial inexistente
 
 | Campo | Detalhe |
 |---|---|
-| Objetivo | Validar remoção de data especial |
-| Método | DELETE |
-| Endpoint | `/api/special-dates/:id` |
-| Perfil | `admin` |
-| Resultado esperado | HTTP 204 |
+| Objetivo | Validar consulta de recurso inexistente |
+| Método | GET |
+| Endpoint | `/api/special-dates/999` |
+| Resultado esperado | HTTP 404 |
 
 ---
 
 # 6. Presentes
 
-## CT-API-039 — Listar presentes
+## CT-API-030 — Criação e consulta de presente
 
 | Campo | Detalhe |
 |---|---|
-| Objetivo | Validar consulta dos presentes |
-| Método | GET |
-| Endpoint | `/api/gifts` |
-| Autenticação | JWT válido |
-| Resultado esperado | HTTP 200 |
+| Objetivo | Validar criação e consulta de presente |
+| Método | POST / GET |
+| Endpoint | `/api/gifts` e `/api/gifts/:id` |
+| Autenticação | Administrador |
+| Resultado esperado | Criação HTTP 201 e consulta HTTP 200 |
 
 ---
 
-## CT-API-040 — Criar presente válido
+## CT-API-031 — Presente sem campo obrigatório
 
 | Campo | Detalhe |
 |---|---|
-| Objetivo | Validar criação de presente |
+| Objetivo | Validar campos obrigatórios do presente |
 | Método | POST |
 | Endpoint | `/api/gifts` |
-| Perfil | `admin` |
-| Resultado esperado | HTTP 201 |
-
----
-
-## CT-API-041 — Criar presente com preço igual a zero
-
-| Campo | Detalhe |
-|---|---|
-| Objetivo | Validar regra de preço |
-| Método | POST |
-| Endpoint | `/api/gifts` |
+| Dados | Payload incompleto |
 | Resultado esperado | HTTP 400 |
 
 ---
 
-## CT-API-042 — Criar presente com preço negativo
+## CT-API-032 — Preço zero ou negativo
 
 | Campo | Detalhe |
 |---|---|
-| Objetivo | Validar rejeição de preço negativo |
+| Objetivo | Garantir que presentes tenham preço maior que zero |
 | Método | POST |
 | Endpoint | `/api/gifts` |
-| Resultado esperado | HTTP 400 |
+| Dados | Preços `0` e `-1` |
+| Resultado esperado | HTTP 400 em ambos os cenários |
 
 ---
 
-## CT-API-043 — Criar presente com dados obrigatórios ausentes
+## CT-API-033 — Atualização parcial e exclusão de presente
 
 | Campo | Detalhe |
 |---|---|
-| Objetivo | Validar payload incompleto |
-| Método | POST |
-| Endpoint | `/api/gifts` |
-| Resultado esperado | HTTP 400 |
-
----
-
-## CT-API-044 — Consultar presente por ID
-
-| Campo | Detalhe |
-|---|---|
-| Objetivo | Validar consulta individual |
-| Método | GET |
+| Objetivo | Validar alteração parcial e exclusão |
+| Método | PATCH / DELETE |
 | Endpoint | `/api/gifts/:id` |
-| Resultado esperado | HTTP 200 |
+| Resultado esperado | PATCH HTTP 200 e DELETE HTTP 204 |
 
 ---
 
-## CT-API-045 — Consultar presente inexistente
+## CT-API-055 — Preço não numérico
 
 | Campo | Detalhe |
 |---|---|
-| Objetivo | Validar tratamento de recurso inexistente |
-| Método | GET |
+| Objetivo | Validar tipo do campo de preço |
+| Método | POST |
+| Endpoint | `/api/gifts` |
+| Dados | `price: "abc"` |
+| Resultado esperado | HTTP 400 |
+
+---
+
+## CT-API-056 — Autorização para criação de presente
+
+| Campo | Detalhe |
+|---|---|
+| Objetivo | Garantir que somente administrador possa criar presentes |
+| Método | POST |
+| Endpoint | `/api/gifts` |
+| Cenários | Usuário comum e administrador |
+| Resultado esperado | Usuário comum recebe HTTP 403 e administrador recebe HTTP 201 |
+
+---
+
+## CT-API-057 — Atualização completa de presente
+
+| Campo | Detalhe |
+|---|---|
+| Objetivo | Validar substituição completa de presente |
+| Método | PUT |
 | Endpoint | `/api/gifts/:id` |
+| Pré-condição | Presente existente |
+| Resultado esperado | HTTP 200 e dados atualizados |
+
+---
+
+## CT-API-058 — Presente inexistente
+
+| Campo | Detalhe |
+|---|---|
+| Objetivo | Validar tratamento de presente inexistente |
+| Método | GET |
+| Endpoint | `/api/gifts/999` |
 | Resultado esperado | HTTP 404 |
-
----
-
-## CT-API-046 — Atualizar presente
-
-| Campo | Detalhe |
-|---|---|
-| Objetivo | Validar atualização de presente |
-| Método | PUT/PATCH |
-| Endpoint | `/api/gifts/:id` |
-| Perfil | `admin` |
-| Resultado esperado | HTTP 200 |
-
----
-
-## CT-API-047 — Excluir presente
-
-| Campo | Detalhe |
-|---|---|
-| Objetivo | Validar remoção de presente |
-| Método | DELETE |
-| Endpoint | `/api/gifts/:id` |
-| Perfil | `admin` |
-| Resultado esperado | HTTP 204 |
 
 ---
 
 # 7. Envios
 
-## CT-API-048 — Listar envios
+## CT-API-034 — Listagem de envios autenticado
 
 | Campo | Detalhe |
 |---|---|
-| Objetivo | Validar consulta dos envios |
+| Objetivo | Validar consulta autenticada de envios |
 | Método | GET |
 | Endpoint | `/api/shipments` |
-| Autenticação | JWT válido |
-| Resultado esperado | HTTP 200 |
+| Autenticação | Administrador |
+| Resultado esperado | HTTP 200 e lista vazia após reset |
 
 ---
 
-## CT-API-049 — Listar envios sem autenticação
+## CT-API-035 — Consulta de envios sem autenticação
 
 | Campo | Detalhe |
 |---|---|
-| Objetivo | Validar proteção do endpoint |
+| Objetivo | Garantir proteção do endpoint de consulta |
 | Método | GET |
 | Endpoint | `/api/shipments` |
+| Autenticação | Nenhuma |
 | Resultado esperado | HTTP 401 |
 
 ---
 
-## CT-API-050 — Criar envio válido
+## CT-API-036 — Criação de envio com status inicial
 
 | Campo | Detalhe |
 |---|---|
-| Objetivo | Validar criação de envio |
+| Objetivo | Validar criação de envio e status inicial |
 | Método | POST |
 | Endpoint | `/api/shipments` |
-| Perfil | `admin` |
-| Resultado esperado | HTTP 201 |
-
----
-
-## CT-API-051 — Novo envio inicia como PENDING
-
-| Campo | Detalhe |
-|---|---|
-| Objetivo | Validar estado inicial do envio |
-| Método | POST |
-| Endpoint | `/api/shipments` |
+| Pré-condição | Colaborador, presente e data especial existentes |
 | Resultado esperado | HTTP 201 e status `PENDING` |
 
 ---
 
-## CT-API-052 — Criar envio com colaborador inexistente
+## CT-API-037 — Envio com payload incompleto
 
 | Campo | Detalhe |
 |---|---|
-| Objetivo | Validar relacionamento com colaborador |
+| Objetivo | Validar campos obrigatórios do envio |
 | Método | POST |
 | Endpoint | `/api/shipments` |
-| Resultado esperado | HTTP 404 |
-
----
-
-## CT-API-053 — Criar envio com presente inexistente
-
-| Campo | Detalhe |
-|---|---|
-| Objetivo | Validar relacionamento com presente |
-| Método | POST |
-| Endpoint | `/api/shipments` |
-| Resultado esperado | HTTP 404 |
-
----
-
-## CT-API-054 — Criar envio sem relacionamento obrigatório
-
-| Campo | Detalhe |
-|---|---|
-| Objetivo | Validar obrigatoriedade dos relacionamentos |
-| Método | POST |
-| Endpoint | `/api/shipments` |
+| Dados | Payload vazio |
 | Resultado esperado | HTTP 400 |
 
 ---
 
-## CT-API-055 — Consultar envio por ID
+## CT-API-038 — Relacionamentos inexistentes
 
 | Campo | Detalhe |
 |---|---|
-| Objetivo | Validar consulta individual |
-| Método | GET |
-| Endpoint | `/api/shipments/:id` |
-| Resultado esperado | HTTP 200 |
-
----
-
-## CT-API-056 — Consultar envio inexistente
-
-| Campo | Detalhe |
-|---|---|
-| Objetivo | Validar tratamento de ID inexistente |
-| Método | GET |
-| Endpoint | `/api/shipments/:id` |
+| Objetivo | Garantir que um envio só seja criado com relacionamentos válidos |
+| Método | POST |
+| Endpoint | `/api/shipments` |
+| Dados | IDs inexistentes de colaborador, presente e data especial |
 | Resultado esperado | HTTP 404 |
 
 ---
 
-## CT-API-057 — Alterar envio de PENDING para ORDERED
+## CT-API-039 — Transição PENDING para ORDERED
 
 | Campo | Detalhe |
 |---|---|
-| Objetivo | Validar transição permitida |
+| Objetivo | Validar primeira transição permitida do envio |
 | Método | PATCH |
 | Endpoint | `/api/shipments/:id/status` |
-| Status atual | `PENDING` |
-| Novo status | `ORDERED` |
-| Resultado esperado | HTTP 200 |
+| Status | `PENDING → ORDERED` |
+| Resultado esperado | HTTP 200 e status `ORDERED` |
 
 ---
 
-## CT-API-058 — Alterar envio de ORDERED para SHIPPED
+## CT-API-040 — Fluxo completo até DELIVERED
 
 | Campo | Detalhe |
 |---|---|
-| Objetivo | Validar transição permitida |
+| Objetivo | Validar sequência completa de entrega |
 | Método | PATCH |
 | Endpoint | `/api/shipments/:id/status` |
-| Status atual | `ORDERED` |
-| Novo status | `SHIPPED` |
-| Resultado esperado | HTTP 200 |
+| Fluxo | `PENDING → ORDERED → SHIPPED → DELIVERED` |
+| Resultado esperado | Todas as transições são aceitas |
 
 ---
 
-## CT-API-059 — Alterar envio de SHIPPED para DELIVERED
+## CT-API-041 — Cancelamento a partir de PENDING
 
 | Campo | Detalhe |
 |---|---|
-| Objetivo | Validar conclusão do fluxo de envio |
+| Objetivo | Validar cancelamento antes do processamento do envio |
 | Método | PATCH |
 | Endpoint | `/api/shipments/:id/status` |
-| Status atual | `SHIPPED` |
-| Novo status | `DELIVERED` |
-| Resultado esperado | HTTP 200 |
+| Fluxo | `PENDING → CANCELLED` |
+| Resultado esperado | HTTP 200 e status `CANCELLED` |
 
 ---
 
-## CT-API-060 — Cancelar envio PENDING
+## CT-API-042 — Status inválido
 
 | Campo | Detalhe |
 |---|---|
-| Objetivo | Validar cancelamento permitido |
+| Objetivo | Validar rejeição de status não suportado |
 | Método | PATCH |
 | Endpoint | `/api/shipments/:id/status` |
-| Status atual | `PENDING` |
-| Novo status | `CANCELLED` |
-| Resultado esperado | HTTP 200 |
+| Dados | `status: UNKNOWN` |
+| Resultado esperado | HTTP 400 |
 
 ---
 
-## CT-API-061 — Cancelar envio ORDERED
+## CT-API-043 — Transição após DELIVERED
 
 | Campo | Detalhe |
 |---|---|
-| Objetivo | Validar cancelamento de envio ORDERED |
+| Objetivo | Garantir que um envio entregue não possa sofrer novas transições |
 | Método | PATCH |
 | Endpoint | `/api/shipments/:id/status` |
-| Status atual | `ORDERED` |
-| Novo status | `CANCELLED` |
-| Resultado esperado | HTTP 200 |
+| Pré-condição | Envio em `DELIVERED` |
+| Resultado esperado | Tentativa de nova transição retorna HTTP 400 |
 
 ---
 
-## CT-API-062 — Cancelar envio SHIPPED
+## CT-API-044 — Atualização de envio inexistente
 
 | Campo | Detalhe |
 |---|---|
-| Objetivo | Validar cancelamento de envio SHIPPED |
+| Objetivo | Validar tratamento de envio inexistente |
 | Método | PATCH |
 | Endpoint | `/api/shipments/:id/status` |
-| Status atual | `SHIPPED` |
-| Novo status | `CANCELLED` |
-| Resultado esperado | HTTP 200 |
+| Dados | ID inexistente |
+| Resultado esperado | HTTP 404 |
 
 ---
 
-## CT-API-063 — Bloquear transição de status inválida
+## CT-API-059 — Mensagem de envio vazia
 
 | Campo | Detalhe |
 |---|---|
-| Objetivo | Garantir que a máquina de estados impeça transições não permitidas |
+| Objetivo | Validar que a mensagem do envio não aceite somente espaços |
+| Método | POST |
+| Endpoint | `/api/shipments` |
+| Dados | `message: "   "` |
+| Resultado esperado | HTTP 400 |
+
+---
+
+## CT-API-060 — Validação individual dos relacionamentos
+
+| Campo | Detalhe |
+|---|---|
+| Objetivo | Garantir validação independente dos relacionamentos do envio |
+| Método | POST |
+| Endpoint | `/api/shipments` |
+| Cenários | `employeeId`, `giftId` e `specialDateId` inexistentes individualmente |
+| Resultado esperado | HTTP 404 para cada relacionamento inválido |
+
+---
+
+## CT-API-061 — Autorização para criação de envio
+
+| Campo | Detalhe |
+|---|---|
+| Objetivo | Garantir que somente administrador possa criar envios |
+| Método | POST |
+| Endpoint | `/api/shipments` |
+| Cenários | Usuário comum e administrador |
+| Resultado esperado | Usuário comum recebe HTTP 403 e administrador consegue criar o envio |
+
+---
+
+## CT-API-062 — Consulta de envio por ID
+
+| Campo | Detalhe |
+|---|---|
+| Objetivo | Validar recuperação de um envio específico |
+| Método | GET |
+| Endpoint | `/api/shipments/:id` |
+| Pré-condição | Envio existente |
+| Resultado esperado | HTTP 200 e ID correspondente ao registro consultado |
+
+---
+
+## CT-API-063 — Cancelamento a partir de ORDERED e SHIPPED
+
+| Campo | Detalhe |
+|---|---|
+| Objetivo | Validar os caminhos de cancelamento após o processamento inicial |
 | Método | PATCH |
 | Endpoint | `/api/shipments/:id/status` |
-| Resultado esperado | HTTP 400 e status original preservado |
+| Fluxos | `ORDERED → CANCELLED` e `SHIPPED → CANCELLED` |
+| Resultado esperado | HTTP 200 e status `CANCELLED` nos dois cenários |
 
 ---
 
-# 8. Regras Gerais de Validação
+## CT-API-064 — Bloqueio de todas as transições após DELIVERED
 
-Os casos de teste também devem considerar as seguintes condições:
-
-- Rotas protegidas devem exigir JWT válido.
-- Operações administrativas devem exigir perfil `admin`.
-- Usuários cadastrados publicamente devem receber perfil `user`.
-- Senhas não devem ser retornadas nas respostas da API.
-- Colaboradores devem possuir e-mail único.
-- Datas de nascimento não podem estar no futuro.
-- Datas especiais devem possuir colaborador válido e tipo permitido.
-- Presentes devem possuir preço maior que zero.
-- Envios devem possuir os relacionamentos necessários.
-- Novos envios devem iniciar com status `PENDING`.
-- Transições de status devem respeitar a máquina de estados definida pela API.
-- Estados finais não devem permitir novas transições.
-- Recursos inexistentes devem retornar HTTP 404.
-- Payloads inválidos ou incompletos devem retornar HTTP 400.
-- Falhas de autenticação devem retornar HTTP 401.
-- Falhas de autorização devem retornar HTTP 403.
+| Campo | Detalhe |
+|---|---|
+| Objetivo | Garantir terminalidade do status `DELIVERED` |
+| Método | PATCH |
+| Endpoint | `/api/shipments/:id/status` |
+| Tentativas | `CANCELLED`, `PENDING`, `ORDERED` e `SHIPPED` |
+| Resultado esperado | HTTP 400 para todas as tentativas |
 
 ---
 
-# 9. Cenários Negativos
+## CT-API-065 — Bloqueio de todas as transições após CANCELLED
 
-A estratégia de testes contempla também cenários negativos para verificar o comportamento da API diante de entradas inválidas ou condições não autorizadas.
-
-Entre eles:
-
-- Requisição sem autenticação.
-- Token inválido.
-- Token expirado.
-- Usuário sem permissão administrativa.
-- Payload incompleto.
-- Dados em formato inválido.
-- E-mail duplicado.
-- Data de nascimento futura.
-- Data especial com tipo inválido.
-- Relacionamento com recurso inexistente.
-- Preço igual ou inferior a zero.
-- ID inexistente.
-- Transição de status não permitida.
+| Campo | Detalhe |
+|---|---|
+| Objetivo | Garantir terminalidade do status `CANCELLED` |
+| Método | PATCH |
+| Endpoint | `/api/shipments/:id/status` |
+| Tentativas | `PENDING`, `ORDERED`, `SHIPPED` e `DELIVERED` |
+| Resultado esperado | HTTP 400 para todas as tentativas |
 
 ---
 
-# 10. Critérios de Aceitação
+## CT-API-066 — Consulta de envio inexistente
 
-Um caso de teste é considerado aprovado quando:
-
-1. A requisição é executada conforme a condição definida.
-2. O status HTTP retornado corresponde ao comportamento esperado.
-3. O corpo da resposta contém os dados esperados.
-4. As regras de autenticação e autorização são respeitadas.
-5. O estado dos dados é alterado somente quando a operação é válida.
-6. Nenhum dado sensível, como senha, é exposto.
-7. Em cenários negativos, a API rejeita corretamente a operação.
+| Campo | Detalhe |
+|---|---|
+| Objetivo | Validar resposta para consulta de envio inexistente |
+| Método | GET |
+| Endpoint | `/api/shipments/:id` |
+| Dados | ID inexistente |
+| Resultado esperado | HTTP 404 |
 
 ---
 
-# 11. Automação
+# 8. Resumo da cobertura
 
-Os casos de teste são automatizados utilizando Cypress.
+A suíte automatizada possui **63 casos de teste**, distribuídos entre os principais domínios da API.
 
-A suíte está organizada por domínio:
+| Área | Casos |
+|---|---:|
+| Infraestrutura e documentação | 2 |
+| Autenticação e autorização | 9 |
+| Colaboradores | 13 |
+| Datas especiais | 9 |
+| Presentes | 8 |
+| Envios | 22 |
+| **Total** | **63** |
 
-- `auth.cy.js`
-- `employees.cy.js`
-- `specialDates.cy.js`
-- `gifts.cy.js`
-- `shipments.cy.js`
-- `mimorh-api.cy.js`
+---
 
-Os testes utilizam requisições HTTP diretamente contra a API, permitindo validar os endpoints sem depender de interface gráfica.
+# 9. Cobertura funcional
 
-A execução pode ser realizada por:
+A suíte contempla:
 
-```bash
-npm test
+- Health check da API;
+- disponibilidade da especificação OpenAPI;
+- cadastro de usuários;
+- login e geração de JWT;
+- validação de credenciais;
+- proteção de rotas;
+- rejeição de token inválido;
+- rejeição de token expirado;
+- autorização por perfil;
+- CRUD de colaboradores;
+- validações de colaboradores;
+- validação de e-mail;
+- validação de endereço;
+- validação de datas;
+- CRUD de datas especiais;
+- validação de tipos de datas;
+- consulta de próximas datas;
+- CRUD de presentes;
+- validação de preço;
+- CRUD de envios;
+- validação dos relacionamentos;
+- validação da mensagem do envio;
+- controle de status dos envios;
+- transições de status permitidas;
+- bloqueio de transições inválidas;
+- terminalidade dos estados `DELIVERED` e `CANCELLED`.
+
+---
+
+# 10. Estratégia de isolamento
+
+Os testes utilizam o comando `cy.resetData()` para restaurar os dados utilizados pela suíte antes da execução dos cenários.
+
+Quando necessário, os testes criam os registros dependentes durante a própria execução, como:
+
+- colaboradores;
+- presentes;
+- datas especiais;
+- envios;
+- usuários comuns.
+
+Essa abordagem permite que os cenários tenham seus próprios dados de teste e reduz a dependência entre os casos.
+
+---
+
+# 11. Dados utilizados
+
+Os dados reutilizáveis dos testes são mantidos em fixtures do Cypress.
+
+Principais fixtures utilizadas:
+
+- `validUser`
+- `validEmployee`
+- `validGift`
+- `validSpecialDate`
+- `validShipment`
+
+Os dados persistidos pela API são armazenados nos arquivos JSON utilizados pela aplicação.
+
+---
+
+# 12. Resultado da execução
+
+Na última execução da suíte:
+
+| Resultado | Quantidade |
+|---|---:|
+| Total | 63 |
+| Passing | 62 |
+| Failing | 1 |
+| Executados | 63 |
+
+A suíte foi executada localmente com Cypress.
+
+O resultado apresentado pelo Cypress foi:
+
+**62 testes aprovados e 1 teste com falha.**
+
+A identificação e análise do cenário que apresentou falha devem ser realizadas a partir do relatório detalhado da execução.
+
+---
+
+# 13. Rastreabilidade
+
+Cada cenário possui um identificador único no formato `CT-API-XXX`.
+
+Os identificadores são utilizados diretamente nos títulos dos testes automatizados, permitindo relacionar:
+
+**Documentação → Caso de teste → Automação Cypress → Endpoint da API**
+
+Exemplo:
+
+`CT-API-036`  
+→ Criação de envio com status inicial  
+→ `POST /api/shipments`  
+→ Cypress  
+→ Validação do status `PENDING`.
+
+---
+
+# 14. Observações
+
+Este documento descreve os cenários atualmente implementados na suíte Cypress.
+
+A ausência de um caso nesta documentação não significa necessariamente ausência de uma regra na API; significa apenas que o comportamento não possui um cenário automatizado listado nesta suíte. 
+
+A documentação de endpoints, regras de negócio e especificação OpenAPI deve ser consultada separadamente para detalhes adicionais sobre o funcionamento da API.
