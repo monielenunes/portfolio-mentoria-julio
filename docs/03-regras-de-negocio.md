@@ -1,66 +1,106 @@
 # 03. Regras de Negócio
 
-Este documento centraliza as regras de negócio da MimoRH API, extraídas do comportamento implementado na API e dos cenários de teste automatizados.
+Este documento centraliza as principais regras de negócio da MimoRH API consideradas no escopo da avaliação e cobertas pelos testes automatizados em Cypress.
+
+As regras abaixo representam os comportamentos validados pela suíte de testes.
 
 ---
 
 ## RN-01 — Autenticação e Usuários
 
-### Cadastro público
+### Cadastro
 
-O cadastro é realizado por `POST /api/auth/register` e é público: não exige token.
+O cadastro é realizado por:
 
-O payload deve conter:
+`POST /api/auth/register`
 
-- `name` como texto não vazio após remoção dos espaços nas extremidades;
-- `email` em formato de e-mail válido;
-- `password` preenchida.
+O endpoint é público e não exige autenticação.
 
-O e-mail é normalizado para letras minúsculas antes de ser armazenado. Não é permitido reutilizar um e-mail já existente, sem distinção entre maiúsculas e minúsculas.
+Para um cadastro válido, devem ser informados os dados necessários de usuário, incluindo:
 
-Ao criar o usuário, a API:
+- `name`;
+- `email`;
+- `password`.
 
-- atribui obrigatoriamente a role `user`;
-- ignora qualquer `role` informado pelo cliente, incluindo `admin`;
-- inicializa `favorites` como uma lista vazia;
-- gera hash da `password` com bcrypt;
-- não retorna o campo `password` na resposta.
+O cadastro com dados obrigatórios ausentes deve retornar `400`.
 
-Respostas relevantes:
+O e-mail deve possuir formato válido. Um e-mail inválido deve retornar `400`.
 
-- `201` para cadastro criado;
-- `400` quando há campo obrigatório ausente, `name` inválido ou e-mail inválido;
-- `409` quando o e-mail já está cadastrado.
+Não é permitido cadastrar novamente um usuário utilizando um e-mail já existente. Nesse caso, a API deve retornar `409`.
 
-> Casos relacionados: `CT-API-005`.
+### Role do usuário
 
-### Login e JWT
+O cadastro público sempre cria o usuário com a role:
 
-O login é realizado por `POST /api/auth/login` e também é público. O payload exige `email` e `password`.
+`user`
 
-- A ausência de qualquer uma dessas credenciais retorna `400`.
-- E-mail inexistente ou senha que não corresponde ao hash armazenado retorna `401`.
-- Em caso de sucesso, a resposta retorna o usuário sem senha e um `token` JWT.
+Caso o cliente envie `role: admin` no payload, a API não deve permitir a criação de um administrador por esse mecanismo.
 
-O token possui as claims `name`, `email`, `role` e `sub`, sendo `sub` o identificador do usuário. Sua duração é definida por `JWT_EXPIRES_IN`; na ausência dessa variável, o ambiente local usa `1h`.
+O usuário criado deve possuir `role: user`.
 
-### Uso do token
+A resposta do cadastro não deve expor o campo `password`.
 
-As rotas protegidas esperam o header:
+O campo `favorites` é inicializado como uma lista vazia.
+
+### Login
+
+O login é realizado por:
+
+`POST /api/auth/login`
+
+O endpoint é público.
+
+O login exige:
+
+- `email`;
+- `password`.
+
+A ausência de um desses campos deve retornar `400`.
+
+Credenciais inválidas devem retornar `401`.
+
+Em caso de autenticação válida, a API deve retornar um token JWT.
+
+O token deve conter as informações esperadas de:
+
+- `name`;
+- `email`;
+- `role`;
+- `sub`.
+
+O campo `sub` representa o identificador do usuário.
+
+### Proteção das rotas
+
+As rotas protegidas utilizam:
 
 ```text
 Authorization: Bearer <token>
-```
+````
 
-O token é verificado com JWT. Após a verificação, a API busca o usuário persistido pelo `sub` do token e disponibiliza esse usuário para a rota. Token ausente, malformado, inválido, expirado ou associado a usuário inexistente retorna `401`.
+A ausência de token deve retornar `401`.
 
-> Casos relacionados: `CT-API-012`.
+Um token inválido também deve retornar `401`.
+
+Um token expirado deve retornar `401`.
+
+### Casos automatizados
+
+* `CT-API-005`
+* `CT-API-006`
+* `CT-API-007`
+* `CT-API-008`
+* `CT-API-009`
+* `CT-API-010`
+* `CT-API-011`
+* `CT-API-012`
+* `CT-API-046`
 
 ---
 
-## RN-02 — Colaboradores
+# RN-02 — Colaboradores
 
-Os colaboradores são gerenciados por:
+Os colaboradores são gerenciados pelos seguintes endpoints:
 
 ```text
 GET    /api/employees
@@ -71,36 +111,112 @@ PATCH  /api/employees/:id
 DELETE /api/employees/:id
 ```
 
-### Campos e validações
+## Criação
 
-Na criação e no `PUT`, todos os campos abaixo são obrigatórios:
+A criação de colaborador exige autenticação de administrador.
 
-- `name`;
-- `email`;
-- `birthDate`;
-- `address`.
+Um colaborador válido deve possuir os dados necessários para seu cadastro.
 
-O objeto `address` deve conter `street`, `number` e `city`.
+Um payload incompleto deve retornar `400`.
 
-O campo `email` deve possuir formato válido e deve ser único entre os colaboradores, sem distinção entre maiúsculas e minúsculas. Um e-mail duplicado retorna `409`.
+O e-mail do colaborador deve possuir formato válido.
 
-`birthDate` deve usar o formato `YYYY-MM-DD`, representar uma data real do calendário e não pode estar no futuro. Datas inexistentes, como `2026-02-30`, e datas futuras retornam `400`.
+Um e-mail inválido deve retornar `400`.
 
-No `PATCH`, somente `name`, `email`, `birthDate` e `address` são considerados. A atualização é parcial, mas deve conter ao menos um desses campos. Campos textuais enviados como string vazia são inválidos; quando `address` é informado, ele deve conter os três campos obrigatórios.
+Não é permitido cadastrar dois colaboradores com o mesmo e-mail.
 
-### Consulta, alteração e exclusão
+Nesse caso, a API deve retornar `409`.
 
-- `GET /api/employees` e `GET /api/employees/:id` exigem autenticação.
-- `POST`, `PUT`, `PATCH` e `DELETE` exigem autenticação e role `admin`.
-- `PUT` exige o conjunto completo de campos obrigatórios; `PATCH` aceita atualização parcial válida.
-- Um identificador inexistente retorna `404` nas operações por `:id`.
-- A exclusão bem-sucedida retorna `204` sem corpo.
+## Data de nascimento
 
-Respostas relevantes: `200`, `201`, `204`, `400`, `401`, `403`, `404` e `409`.
+A data de nascimento não pode estar no futuro.
+
+Uma data futura deve retornar `400`.
+
+A data também deve representar uma data válida do calendário.
+
+Datas inexistentes, como:
+
+```text
+2026-02-30
+```
+
+devem retornar `400`.
+
+## Endereço
+
+O endereço do colaborador deve possuir os dados necessários para sua composição.
+
+Um endereço incompleto deve ser rejeitado com `400`.
+
+## Consulta
+
+A listagem de colaboradores exige autenticação.
+
+A consulta de um colaborador por identificador também exige autenticação.
+
+Um colaborador inexistente deve retornar `404`.
+
+## Atualização
+
+A API permite atualização completa utilizando:
+
+`PUT /api/employees/:id`
+
+O `PUT` deve receber os dados necessários para uma atualização completa.
+
+Um payload incompleto deve retornar `400`.
+
+Também é possível realizar atualização parcial utilizando:
+
+`PATCH /api/employees/:id`
+
+Uma atualização parcial válida deve retornar `200`.
+
+Um `PATCH` contendo somente campos não reconhecidos deve retornar `400`.
+
+## Exclusão
+
+A exclusão é realizada por:
+
+`DELETE /api/employees/:id`
+
+A exclusão de um colaborador existente deve retornar:
+
+`204`
+
+## Autorização
+
+Usuários comuns não podem criar colaboradores.
+
+Uma tentativa de criação realizada por usuário comum deve retornar:
+
+`403`
+
+Operações administrativas são executadas utilizando um usuário com role `admin`.
+
+### Casos automatizados
+
+* `CT-API-013`
+* `CT-API-014`
+* `CT-API-015`
+* `CT-API-016`
+* `CT-API-017`
+* `CT-API-018`
+* `CT-API-019`
+* `CT-API-020`
+* `CT-API-021`
+* `CT-API-022`
+* `CT-API-023`
+* `CT-API-024`
+* `CT-API-025`
+* `CT-API-047`
+* `CT-API-048`
+* `CT-API-049`
 
 ---
 
-## RN-03 — Datas Especiais
+# RN-03 — Datas Especiais
 
 As datas especiais são gerenciadas por:
 
@@ -114,48 +230,101 @@ DELETE /api/special-dates/:id
 GET    /api/special-dates/upcoming
 ```
 
-### Relacionamento e campos obrigatórios
+## Criação
 
-Na criação e no `PUT`, são obrigatórios:
+A criação de uma data especial exige:
 
-- `employeeId`;
-- `type`;
-- `date`.
+* `employeeId`;
+* `type`;
+* `date`.
 
-`employeeId` deve identificar um colaborador existente. Caso contrário, a API retorna `404`.
+A ausência de campos obrigatórios deve retornar `400`.
 
-Os valores permitidos para `type` são:
+O `employeeId` deve corresponder a um colaborador existente.
+
+Caso o colaborador não exista, a API deve retornar:
+
+`404`
+
+## Tipo
+
+A data especial deve utilizar um tipo permitido pela API.
+
+Tipos inválidos devem retornar:
+
+`400`
+
+Entre os tipos utilizados pelos testes estão:
 
 ```text
 BIRTHDAY
-MOTHERS_DAY
-FATHERS_DAY
 OTHER
 ```
 
-`date` deve estar no formato `YYYY-MM-DD` e representar uma data real. Datas com mês, dia ou calendário inválidos retornam `400`.
+## Data
 
-No `PATCH`, são aceitos apenas `employeeId`, `type` e `date`; a requisição deve incluir pelo menos um desses campos. Quando `employeeId` é alterado, o novo colaborador também deve existir.
+A data deve possuir formato válido e representar uma data existente no calendário.
 
-### Próximas datas
+Uma data calendariamente inválida deve retornar:
 
-`GET /api/special-dates/upcoming` retorna as datas ordenadas por proximidade. Para calcular a próxima ocorrência, datas já passadas têm o ano avançado até não estarem antes do dia atual.
+`400`
 
-Cada item retornado inclui os dados da data especial, o objeto `employee` associado e `daysRemaining`.
+## Upcoming
 
-### Permissões e respostas
+A API disponibiliza:
 
-- Consultas exigem token válido.
-- Criação, atualização e exclusão exigem role `admin`.
-- Identificadores inexistentes retornam `404`.
+`GET /api/special-dates/upcoming`
 
-Respostas relevantes: `200`, `201`, `204`, `400`, `401`, `403` e `404`.
+O endpoint deve retornar as próximas datas especiais cadastradas.
 
-> Casos relacionados: `CT-API-027`.
+Os itens retornados devem possuir informações relacionadas à data especial e ao colaborador.
+
+A resposta validada pelos testes contém:
+
+* `id`;
+* `employeeId`;
+* `employee`;
+* `type`;
+* `date`;
+* `daysRemaining`.
+
+## Atualização e exclusão
+
+É possível atualizar uma data especial utilizando `PATCH`.
+
+Também é possível realizar atualização completa utilizando `PUT`.
+
+A exclusão é realizada utilizando `DELETE`.
+
+A exclusão bem-sucedida retorna:
+
+`204`
+
+## Autorização
+
+A criação de data especial é uma operação administrativa.
+
+Um usuário comum tentando criar uma data especial deve receber:
+
+`403`
+
+Um administrador deve conseguir realizar a criação quando os dados forem válidos.
+
+### Casos automatizados
+
+* `CT-API-026`
+* `CT-API-027`
+* `CT-API-028`
+* `CT-API-029`
+* `CT-API-050`
+* `CT-API-051`
+* `CT-API-052`
+* `CT-API-053`
+* `CT-API-054`
 
 ---
 
-## RN-04 — Presentes
+# RN-04 — Presentes
 
 Os presentes são gerenciados por:
 
@@ -168,33 +337,99 @@ PATCH  /api/gifts/:id
 DELETE /api/gifts/:id
 ```
 
-### Campos e preço
+## Criação
 
-Na criação e no `PUT`, são obrigatórios:
+A criação de um presente exige os campos necessários definidos pela API.
 
-- `name`;
-- `description`;
-- `price`;
-- `store`.
+Um payload incompleto deve retornar:
 
-`price` deve ser convertível para número finito e maior que zero. Valor `0`, valor negativo ou valor não numérico retorna `400`.
+`400`
 
-No `PATCH`, podem ser enviados `name`, `description`, `price` e `store`. Deve haver ao menos um campo reconhecido; `name`, `description` e `store` não podem ser enviados como string vazia, e qualquer `price` informado continua sujeito à validação de valor positivo.
+## Preço
 
-### Permissões e respostas
+O preço do presente deve ser maior que zero.
 
-- Consultas exigem token válido.
-- Criação, atualização e exclusão exigem role `admin`.
-- Identificador inexistente retorna `404`.
-- Exclusão bem-sucedida retorna `204` sem corpo.
+Os seguintes valores devem ser rejeitados:
 
-Respostas relevantes: `200`, `201`, `204`, `400`, `401`, `403` e `404`.
+```text
+0
+-1
+```
 
-> Casos relacionados: `CT-API-032`.
+Valores não numéricos também devem ser rejeitados.
+
+Exemplo:
+
+```text
+"abc"
+```
+
+As situações acima devem retornar:
+
+`400`
+
+## Consulta
+
+A API permite consultar um presente por identificador.
+
+Um presente existente deve retornar:
+
+`200`
+
+Um presente inexistente deve retornar:
+
+`404`
+
+## Atualização
+
+É possível realizar atualização parcial com:
+
+`PATCH /api/gifts/:id`
+
+Também é possível realizar atualização completa com:
+
+`PUT /api/gifts/:id`
+
+Uma atualização válida deve retornar:
+
+`200`
+
+## Exclusão
+
+A exclusão é realizada utilizando:
+
+`DELETE /api/gifts/:id`
+
+Uma exclusão bem-sucedida deve retornar:
+
+`204`
+
+## Autorização
+
+A criação de presentes é uma operação administrativa.
+
+Um usuário comum não pode criar presentes.
+
+Nesse caso, a API deve retornar:
+
+`403`
+
+Um administrador deve conseguir criar um presente válido.
+
+### Casos automatizados
+
+* `CT-API-030`
+* `CT-API-031`
+* `CT-API-032`
+* `CT-API-033`
+* `CT-API-055`
+* `CT-API-056`
+* `CT-API-057`
+* `CT-API-058`
 
 ---
 
-## RN-05 — Envios
+# RN-05 — Envios
 
 Os envios são gerenciados por:
 
@@ -205,35 +440,109 @@ GET   /api/shipments/:id
 PATCH /api/shipments/:id/status
 ```
 
-### Criação e relacionamentos
+## Criação
 
-`POST /api/shipments` exige:
+Para criar um envio, devem existir os relacionamentos necessários entre:
 
-- `employeeId` de um colaborador existente;
-- `giftId` de um presente existente;
-- `specialDateId` de uma data especial existente;
-- `message` preenchida após remoção dos espaços nas extremidades.
+* colaborador;
+* presente;
+* data especial.
 
-Se algum relacionamento não existir, a API retorna `404`. Ausência de campo obrigatório ou mensagem vazia retorna `400`.
+Os identificadores são enviados por:
 
-O status enviado pelo cliente não define o envio: em toda criação bem-sucedida, a API armazena obrigatoriamente `status` como `PENDING` e remove espaços das extremidades de `message`.
+```text
+employeeId
+giftId
+specialDateId
+```
 
-### Consulta e alteração
+Caso algum relacionamento não exista, a API deve retornar:
 
-- `GET /api/shipments` e `GET /api/shipments/:id` exigem token válido.
-- A criação e a alteração de status exigem role `admin`.
-- Um envio inexistente retorna `404`.
-- A única atualização disponível para o envio é `PATCH /api/shipments/:id/status`.
+`404`
 
-Respostas relevantes: `200`, `201`, `400`, `401`, `403` e `404`.
+Um payload incompleto deve retornar:
 
-> Casos relacionados: `CT-API-036`.
+`400`
+
+A mensagem do envio não pode ser vazia.
+
+Uma mensagem contendo apenas espaços também deve ser rejeitada com:
+
+`400`
+
+## Status inicial
+
+Todo novo envio deve ser criado com:
+
+```text
+PENDING
+```
+
+O status inicial é definido pela API no momento da criação.
+
+## Consulta
+
+A listagem de envios exige autenticação.
+
+A consulta de um envio por identificador também exige autenticação.
+
+Um envio inexistente deve retornar:
+
+`404`
+
+## Alteração de status
+
+A alteração de status é realizada por:
+
+`PATCH /api/shipments/:id/status`
+
+A operação exige autenticação administrativa.
+
+Status inexistentes devem ser rejeitados com:
+
+`400`
+
+Transições não permitidas também devem retornar:
+
+`400`
+
+## Autorização
+
+Usuários comuns não podem criar envios.
+
+Uma tentativa de criação por usuário comum deve retornar:
+
+`403`
+
+Administradores podem criar envios quando todos os dados e relacionamentos forem válidos.
+
+### Casos automatizados
+
+* `CT-API-034`
+* `CT-API-035`
+* `CT-API-036`
+* `CT-API-037`
+* `CT-API-038`
+* `CT-API-039`
+* `CT-API-040`
+* `CT-API-041`
+* `CT-API-042`
+* `CT-API-043`
+* `CT-API-044`
+* `CT-API-059`
+* `CT-API-060`
+* `CT-API-061`
+* `CT-API-062`
+* `CT-API-063`
+* `CT-API-064`
+* `CT-API-065`
+* `CT-API-066`
 
 ---
 
-## RN-06 — Máquina de Estados dos Envios
+# RN-06 — Máquina de Estados dos Envios
 
-O campo `status` aceita exclusivamente os valores:
+O status de um envio pode assumir os seguintes valores:
 
 ```text
 PENDING
@@ -243,65 +552,218 @@ DELIVERED
 CANCELLED
 ```
 
-As transições permitidas são:
+## Fluxo normal
+
+O fluxo de entrega validado pela automação é:
 
 ```text
-PENDING → ORDERED
-PENDING → CANCELLED
-
-ORDERED → SHIPPED
-ORDERED → CANCELLED
-
-SHIPPED → DELIVERED
-SHIPPED → CANCELLED
+PENDING
+   ↓
+ORDERED
+   ↓
+SHIPPED
+   ↓
+DELIVERED
 ```
 
-`DELIVERED` e `CANCELLED` são estados finais: não permitem mudança para qualquer outro status. Também são inválidas as transições que não aparecem no fluxo permitido, como pular de `PENDING` diretamente para `SHIPPED` ou `DELIVERED`.
+Cada transição deve ocorrer na ordem permitida.
 
-Em `PATCH /api/shipments/:id/status`, status inexistente na lista permitida ou transição não permitida retorna `400`. Se o envio não existir, a resposta é `404`; token ausente ou inválido retorna `401`; usuário não admin recebe `403`.
+O teste `CT-API-040` valida a sequência completa até `DELIVERED`.
 
-> Casos relacionados: `CT-API-043`.
+## Cancelamento
+
+O envio pode ser cancelado antes da entrega.
+
+São validados os seguintes caminhos:
+
+```text
+PENDING  → CANCELLED
+ORDERED  → CANCELLED
+SHIPPED  → CANCELLED
+```
+
+## Estados finais
+
+`DELIVERED` é um estado final.
+
+Após atingir `DELIVERED`, o envio não pode retornar para:
+
+```text
+CANCELLED
+PENDING
+ORDERED
+SHIPPED
+```
+
+`CANCELLED` também é um estado final.
+
+Após atingir `CANCELLED`, o envio não pode retornar para:
+
+```text
+PENDING
+ORDERED
+SHIPPED
+DELIVERED
+```
+
+Todas essas tentativas devem retornar:
+
+`400`
+
+## Transições inválidas
+
+Transições que não fazem parte do fluxo permitido devem ser rejeitadas.
+
+Também é inválido utilizar um status que não pertence à máquina de estados.
+
+### Casos automatizados
+
+* `CT-API-039`
+* `CT-API-040`
+* `CT-API-041`
+* `CT-API-042`
+* `CT-API-043`
+* `CT-API-063`
+* `CT-API-064`
+* `CT-API-065`
 
 ---
 
-## RN-07 — Autorização e Permissões
+# RN-07 — Autorização
 
-As regras abaixo se aplicam às rotas de domínio da API:
+A API diferencia usuários comuns de administradores.
 
-| Operação | Autenticação | Role `admin` |
-|---|---:|---:|
-| Consultas de colaboradores, datas especiais, presentes e envios | Obrigatória | Não |
-| Criação, `PUT`, `PATCH` e `DELETE` de colaboradores | Obrigatória | Sim |
-| Criação, `PUT`, `PATCH` e `DELETE` de datas especiais | Obrigatória | Sim |
-| Criação, `PUT`, `PATCH` e `DELETE` de presentes | Obrigatória | Sim |
-| Criação de envio e alteração de seu status | Obrigatória | Sim |
+## Usuário comum
 
-As rotas de cadastro e login são públicas. Nas rotas protegidas:
+O usuário comum pode realizar operações que não exigem privilégios administrativos, de acordo com as regras de autenticação da API.
 
-- ausência de token retorna `401`;
-- token inválido, expirado ou sem usuário persistido retorna `401`;
-- usuário autenticado com role diferente de `admin` recebe `403` em operações administrativas;
-- usuário com role `admin` pode executar essas operações, desde que o payload e os relacionamentos sejam válidos.
+Não é permitido utilizar um usuário comum para realizar as operações administrativas explicitamente cobertas pela suíte.
 
-> Casos relacionados: `CT-API-012`.
+Os testes validam bloqueio de usuário comum nas seguintes operações:
+
+* criação de colaborador;
+* criação de data especial;
+* criação de presente;
+* criação de envio.
+
+Nesses casos, a API deve retornar:
+
+`403`
+
+## Administrador
+
+O administrador é utilizado nos testes para executar as operações administrativas dos módulos.
+
+Quando autenticado e utilizando dados válidos, o administrador deve conseguir executar as operações previstas pela API.
+
+## Autenticação
+
+Nas rotas protegidas:
+
+* ausência de token → `401`;
+* token inválido → `401`;
+* token expirado → `401`;
+* usuário comum em operação administrativa → `403`.
+
+### Casos automatizados
+
+* `CT-API-012`
+* `CT-API-016`
+* `CT-API-052`
+* `CT-API-056`
+* `CT-API-061`
 
 ---
 
-## RN-08 — Validações e Respostas HTTP
+# RN-08 — Respostas HTTP
 
-As validações são executadas antes de persistir uma alteração. A resposta usa o seguinte padrão geral:
+A API utiliza códigos HTTP para indicar o resultado das operações.
 
-| Status | Quando ocorre |
-|---|---|
-| `200` | Consulta ou atualização concluída com sucesso. |
-| `201` | Usuário, colaborador, data especial, presente ou envio criado com sucesso. |
-| `204` | Colaborador, data especial ou presente excluído com sucesso. |
-| `400` | Payload obrigatório ausente, valor inválido, data inválida, preço inválido, mensagem vazia, status inválido ou transição não permitida. |
-| `401` | Token ausente, inválido, expirado ou associado a usuário inexistente. |
-| `403` | Usuário autenticado sem role `admin` tentou operação administrativa. |
-| `404` | Recurso ou relacionamento solicitado não existe. |
-| `409` | E-mail de usuário ou de colaborador já está cadastrado. |
+| Status | Situação validada                                                                                                        |
+| ------ | ------------------------------------------------------------------------------------------------------------------------ |
+| `200`  | Consulta ou atualização realizada com sucesso                                                                            |
+| `201`  | Recurso criado com sucesso                                                                                               |
+| `204`  | Recurso excluído com sucesso                                                                                             |
+| `400`  | Dados inválidos, campos obrigatórios ausentes, preço inválido, data inválida, status inválido ou transição não permitida |
+| `401`  | Token ausente, inválido ou expirado                                                                                      |
+| `403`  | Usuário autenticado sem permissão administrativa                                                                         |
+| `404`  | Recurso ou relacionamento inexistente                                                                                    |
+| `409`  | E-mail já cadastrado                                                                                                     |
 
-Além das validações específicas de cada domínio, o `PATCH` de colaboradores, datas especiais e presentes descarta chaves que não pertencem ao modelo. Se nenhuma chave válida permanecer, a resposta é `400`.
+---
 
-Os identificadores são comparados como strings nas coleções JSON locais; por isso, qualquer valor que não encontre o recurso correspondente é tratado como inexistente e retorna `404` quando a operação consulta, altera ou exclui por identificador.
+# RN-09 — Health Check e OpenAPI
+
+## Health Check
+
+A API disponibiliza:
+
+```text
+GET /api/health
+```
+
+O endpoint é público.
+
+Uma API disponível deve responder:
+
+```json
+{
+  "status": "ok"
+}
+```
+
+com HTTP:
+
+`200`
+
+## OpenAPI
+
+A API disponibiliza sua especificação OpenAPI em:
+
+```text
+GET /api-docs.json
+```
+
+O teste automatizado valida:
+
+* HTTP `200`;
+* versão OpenAPI `3.0.3`;
+* título `MimoRH API`.
+
+O cenário correspondente é:
+
+`CT-API-045`
+
+---
+
+# RN-10 — Resumo das Regras Automatizadas
+
+A suíte Cypress valida os seguintes grupos principais de regras:
+
+| Domínio         | Principais regras validadas                                      |
+| --------------- | ---------------------------------------------------------------- |
+| Autenticação    | Cadastro, login, JWT, credenciais inválidas e proteção de rotas  |
+| Usuários        | Role `user`, senha não retornada e e-mail duplicado              |
+| Colaboradores   | CRUD, autenticação, autorização, e-mail, endereço e datas        |
+| Datas especiais | Criação, relacionamento, tipos, datas inválidas, upcoming e CRUD |
+| Presentes       | Criação, consulta, atualização, exclusão e validação de preço    |
+| Envios          | Criação, relacionamentos, status inicial e consulta              |
+| Status de envio | Fluxo de entrega, cancelamento e estados finais                  |
+| Autorização     | Bloqueio de usuários comuns em operações administrativas         |
+| Infraestrutura  | Health check e especificação OpenAPI                             |
+
+---
+
+## Casos automatizados
+
+A suíte atualmente possui **63 cenários automatizados**, identificados pelo padrão:
+
+```text
+CT-API-XXX
+```
+
+Os casos estão documentados em:
+
+`07-casos-de-teste-da-api.md`
+
+Os identificadores são utilizados para manter a rastreabilidade entre as regras de negócio, a documentação dos casos de teste e a implementação Cypress.

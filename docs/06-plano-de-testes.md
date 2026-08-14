@@ -1,6 +1,6 @@
 # 06. Plano e Estratégia de Testes — MimoRH API
 
-Este documento define a estratégia de testes da MimoRH API. Ele cobre comportamento funcional dos endpoints, autenticação, autorização, validações, regras de negócio, relacionamentos entre recursos, transições de status e execução automatizada com Cypress.
+Este documento define a estratégia de testes da MimoRH API. Ele cobre o comportamento funcional dos endpoints, autenticação, autorização, validações, regras de negócio, relacionamentos entre recursos, transições de status e execução automatizada com Cypress.
 
 ---
 
@@ -21,171 +21,352 @@ Este documento define a estratégia de testes da MimoRH API. Ele cobre comportam
 
 ## 2. Objetivo dos Testes
 
-Os testes validam que a API atende às regras funcionais para gestão de colaboradores, datas especiais, presentes e envios.
+Os testes têm como objetivo validar que a MimoRH API atende às regras funcionais definidas para gerenciamento de usuários, colaboradores, datas especiais, presentes e envios.
 
-O foco da estratégia é verificar:
+A estratégia busca verificar:
 
-- disponibilidade da API e contrato OpenAPI;
-- cadastro e login de usuários;
-- autenticação JWT e autorização por role;
-- operações de CRUD disponíveis nos módulos;
-- validações de payload e códigos HTTP;
-- integridade dos relacionamentos entre colaboradores, datas, presentes e envios;
+- disponibilidade da API e da especificação OpenAPI;
+- cadastro e autenticação de usuários;
+- geração e validação de tokens JWT;
+- autorização baseada em perfil;
+- operações de criação, consulta, atualização e exclusão;
+- validações de payload;
+- códigos HTTP esperados;
+- integridade dos relacionamentos entre recursos;
+- regras de negócio dos diferentes módulos;
 - máquina de estados dos envios;
-- cenários positivos, negativos e de regressão automatizada;
-- execução da suíte na integração contínua.
+- cenários positivos e negativos;
+- execução automatizada da regressão.
 
 ---
 
 ## 3. Escopo de Testes
 
-### Health e documentação da API
+### 3.1 Health e documentação da API
 
-Validar a disponibilidade por `GET /api/health` e a especificação por `GET /api-docs.json`, incluindo a versão OpenAPI e o título da API.
+Validar a disponibilidade da API por meio de `GET /api/health`.
 
-### Autenticação
+Também é validada a disponibilidade da especificação OpenAPI por meio de `GET /api-docs.json`, verificando o status da resposta, a versão OpenAPI e o título da API.
 
-Validar cadastro público, atribuição da role `user`, proteção da senha na resposta, formato e duplicidade de e-mail, login, JWT, credenciais inválidas, token ausente, token inválido e token expirado.
+---
 
-### Colaboradores
+### 3.2 Autenticação e autorização
 
-Validar consulta, criação, consulta por identificador, `PUT`, `PATCH` e exclusão. A cobertura inclui permissões, e-mail inválido ou duplicado, dados obrigatórios, endereço incompleto, data de nascimento inválida ou futura e recurso inexistente.
+Validar:
 
-### Datas especiais
+- cadastro de usuários;
+- atribuição automática da role `user`;
+- proteção da senha na resposta de cadastro;
+- validação de campos obrigatórios;
+- validação do formato do e-mail;
+- bloqueio de e-mails duplicados;
+- login com credenciais válidas;
+- geração de JWT;
+- validação das claims do token;
+- rejeição de credenciais inválidas;
+- bloqueio de rotas sem token;
+- bloqueio de tokens inválidos;
+- bloqueio de tokens expirados;
+- diferenciação entre usuários comuns e administradores.
 
-Validar CRUD, consulta de próximas datas, relacionamento com colaborador, tipos permitidos, data válida, payload obrigatório, permissões e identificadores inexistentes.
+---
 
-### Presentes
+### 3.3 Colaboradores
 
-Validar CRUD, preço positivo, dados obrigatórios, preço zero, negativo ou não numérico, permissões e recurso inexistente.
+Validar:
 
-### Envios
+- listagem de colaboradores;
+- consulta por identificador;
+- criação;
+- atualização completa com `PUT`;
+- atualização parcial com `PATCH`;
+- exclusão;
+- autenticação;
+- autorização administrativa;
+- campos obrigatórios;
+- e-mail inválido;
+- e-mail duplicado;
+- endereço incompleto;
+- data de nascimento futura;
+- data de nascimento calendariamente inválida;
+- colaborador inexistente.
 
-Validar listagem, consulta por identificador, criação, mensagem obrigatória, relacionamentos obrigatórios, status inicial `PENDING`, autorização e alteração de status conforme a máquina de estados.
+---
+
+### 3.4 Datas especiais
+
+Validar:
+
+- criação;
+- consulta de próximas datas;
+- atualização parcial;
+- atualização completa;
+- exclusão;
+- relacionamento com colaborador;
+- tipos permitidos;
+- campos obrigatórios;
+- data calendariamente inválida;
+- colaborador inexistente;
+- autorização administrativa;
+- recurso inexistente.
+
+---
+
+### 3.5 Presentes
+
+Validar:
+
+- criação;
+- consulta por identificador;
+- atualização parcial;
+- atualização completa;
+- exclusão;
+- campos obrigatórios;
+- preço positivo;
+- preço zero;
+- preço negativo;
+- preço não numérico;
+- autorização administrativa;
+- recurso inexistente.
+
+---
+
+### 3.6 Envios
+
+Validar:
+
+- listagem;
+- consulta por identificador;
+- criação;
+- campos obrigatórios;
+- mensagem obrigatória;
+- relacionamentos com colaborador, presente e data especial;
+- status inicial `PENDING`;
+- autorização administrativa;
+- transições permitidas;
+- transições inválidas;
+- cancelamento;
+- terminalidade dos status `DELIVERED` e `CANCELLED`;
+- recurso inexistente.
 
 ---
 
 ## 4. Fora do Escopo
 
-Esta avaliação é focada em automação de API. Não fazem parte do escopo atual:
+Esta avaliação é focada em automação de API.
+
+Não fazem parte do escopo atual:
 
 - frontend ou interface gráfica;
-- testes visuais e testes E2E de interface;
-- banco de dados externo, pois a API persiste dados em arquivos JSON locais;
-- integrações externas, pois a API não possui integrações desse tipo documentadas;
-- testes de desempenho, carga ou tempo de resposta, pois não há cenários automatizados para essas categorias.
+- testes visuais;
+- testes E2E de interface;
+- banco de dados externo;
+- integrações externas;
+- testes de carga;
+- testes de stress;
+- testes de performance;
+- testes de segurança especializados ou penetration testing.
+
+A API utiliza arquivos JSON locais para persistência, portanto não é necessário um banco de dados externo para esta avaliação.
 
 ---
 
 ## 5. Estratégia de Testes
 
-### Testes funcionais
+### 5.1 Testes funcionais
 
-Os endpoints documentados são exercitados com `cy.request()`. São verificados status HTTP, propriedades relevantes da resposta e persistência funcional necessária para o fluxo de cada cenário.
+Os endpoints são exercitados diretamente por meio do Cypress utilizando `cy.request()`.
 
-### Testes positivos
+São avaliados:
 
-Os cenários positivos usam payloads válidos e, nas rotas protegidas, tokens de administrador. Incluem criação, consulta, atualização, exclusão e transições permitidas de envios.
+- status HTTP;
+- corpo das respostas;
+- propriedades relevantes;
+- criação e alteração dos registros;
+- regras de negócio;
+- relacionamentos entre recursos;
+- comportamento esperado em situações de erro.
 
-### Testes negativos
+---
 
-Os testes negativos verificam, entre outros cenários:
+### 5.2 Testes positivos
+
+Os cenários positivos utilizam dados válidos e, quando necessário, autenticação com usuário administrador.
+
+São contempladas operações como:
+
+- criação de recursos;
+- consultas;
+- atualização;
+- exclusão;
+- autenticação;
+- geração de JWT;
+- transições permitidas de status;
+- criação de recursos relacionados.
+
+---
+
+### 5.3 Testes negativos
+
+Os cenários negativos verificam o comportamento da API diante de entradas inválidas ou operações não permitidas.
+
+São contemplados:
 
 - campos obrigatórios ausentes;
-- e-mail inválido ou duplicado;
-- data inexistente, formato de data inválido e data futura;
-- preço zero, negativo ou não numérico;
-- token ausente, inválido ou expirado;
-- usuário comum em operação administrativa;
-- recurso ou relacionamento inexistente;
-- status inexistente e transição de status bloqueada.
+- e-mail inválido;
+- e-mail duplicado;
+- datas futuras;
+- datas calendariamente inválidas;
+- endereço incompleto;
+- preço zero;
+- preço negativo;
+- preço não numérico;
+- token ausente;
+- token inválido;
+- token expirado;
+- usuário comum tentando realizar operações administrativas;
+- recursos inexistentes;
+- relacionamentos inexistentes;
+- status inválido;
+- transições de status não permitidas.
 
-### Testes de autorização
+---
 
-A estratégia diferencia:
+### 5.4 Testes de autenticação e autorização
 
-- requisição sem token, com resposta esperada `401`;
-- token inválido ou expirado, com resposta esperada `401`;
-- usuário comum em operação administrativa, com resposta esperada `403`;
-- administrador com payload válido, autorizado a criar, atualizar ou excluir recursos administrativos.
+A estratégia diferencia os principais cenários de acesso:
 
-### Testes de validação e regras de negócio
+| Situação | Resultado esperado |
+|---|---|
+| Sem token | HTTP 401 |
+| Token inválido | HTTP 401 |
+| Token expirado | HTTP 401 |
+| Usuário comum em operação administrativa | HTTP 403 |
+| Administrador com dados válidos | Operação permitida |
 
-As validações dos domínios são verificadas pela suíte Cypress e detalhadas em [03-regras-de-negocio.md](03-regras-de-negocio.md). O foco inclui unicidade de e-mail, datas reais, preços positivos, relações existentes e o fluxo de status do envio.
+---
 
-### Testes de regressão
+### 5.5 Testes de validação e regras de negócio
 
-A suíte completa deve ser executada após alterações para confirmar que os comportamentos já cobertos continuam funcionando. O reset da baseline de dados é aplicado antes e depois de cada cenário para reduzir dependência de ordem entre os testes.
+As validações dos diferentes módulos são exercitadas diretamente pela suíte Cypress.
+
+Entre as principais regras verificadas estão:
+
+- usuário cadastrado publicamente recebe role `user`;
+- senha não é retornada na resposta de cadastro;
+- e-mails devem possuir formato válido;
+- e-mails duplicados são rejeitados;
+- datas de nascimento não podem estar no futuro;
+- datas calendariamente inválidas são rejeitadas;
+- endereços incompletos são rejeitados;
+- presentes devem possuir preço maior que zero;
+- envios devem possuir relacionamentos válidos;
+- novos envios iniciam com `PENDING`;
+- transições de status devem seguir a máquina de estados;
+- estados `DELIVERED` e `CANCELLED` não permitem novas transições.
+
+As regras de negócio são detalhadas no documento `03-regras-de-negocio.md`.
+
+---
+
+### 5.6 Testes de regressão
+
+A suíte completa deve ser executada após alterações na API para verificar se comportamentos anteriormente implementados continuam funcionando.
+
+Os specs executam `cy.resetData()` antes dos cenários, utilizando uma baseline fixa para reduzir dependências entre os testes.
 
 ---
 
 ## 6. Critérios de Entrada
 
-Antes de executar os testes, devem estar disponíveis:
+Antes da execução dos testes, devem estar disponíveis:
 
 - dependências instaladas com `npm install` ou `npm ci`;
 - API iniciada em `http://localhost:3000`;
 - health check disponível em `GET /api/health`;
 - arquivos de dados em `src/data/` acessíveis para a API;
-- baseline em `cypress/fixtures/database/` acessível para o reset dos testes;
+- baseline de dados disponível para o reset dos testes;
 - Cypress configurado com `baseUrl` igual a `http://localhost:3000`.
 
 ---
 
 ## 7. Critérios de Saída
 
-A execução pode ser considerada apta quando:
+A execução pode ser considerada concluída quando:
 
-- a suíte Cypress é concluída;
-- os cenários críticos de autenticação, autorização, validações e estados de envio são aprovados;
-- não há falha bloqueadora nos endpoints cobertos;
-- a API responde ao health check;
-- a execução de CI conclui as etapas de instalação, health check e Cypress com sucesso.
+- a suíte Cypress foi executada;
+- os cenários críticos de autenticação e autorização foram executados;
+- as principais validações foram executadas;
+- os relacionamentos entre recursos foram validados;
+- os cenários da máquina de estados foram executados;
+- o health check da API respondeu corretamente;
+- os resultados da execução foram registrados;
+- quando executado no CI, o workflow concluiu as etapas previstas com sucesso.
 
 ---
 
 ## 8. Ambiente de Testes
 
-| Item | Configuração atual |
+| Item | Configuração |
 |---|---|
 | Runtime de CI | Node.js 22 |
 | Gerenciador de pacotes | npm |
 | Ferramenta de automação | Cypress `^15.20.1` |
-| Base URL do Cypress | `http://localhost:3000` |
-| Porta padrão da API | `3000` |
-| Persistência | JSON local em `src/data/` |
-| CI | GitHub Actions em `ubuntu-latest` |
-| JWT no CI | Variável `JWT_SECRET` definida pelo workflow |
+| Base URL | `http://localhost:3000` |
+| Porta da API | `3000` |
+| Persistência | Arquivos JSON locais |
+| CI | GitHub Actions |
+| Sistema operacional do CI | `ubuntu-latest` |
+| JWT no CI | Variável `JWT_SECRET` |
 
-O ambiente local pode usar `.env`, com `.env.example` como referência. A API também considera `JWT_EXPIRES_IN` para controlar a duração do token; quando ausente, o comportamento local usa a duração padrão implementada pela API.
+O ambiente local pode utilizar o arquivo `.env`, tendo `.env.example` como referência.
+
+A API também utiliza `JWT_EXPIRES_IN` para controlar a duração do token quando configurado.
 
 ---
 
 ## 9. Dados de Teste
 
-Os dados operacionais da API ficam em arquivos JSON locais:
+A aplicação utiliza arquivos JSON locais para persistência:
 
 ```text
-src/data/users.json
-src/data/employees.json
-src/data/specialDates.json
-src/data/gifts.json
-src/data/shipments.json
-```
+src/data/
+├── users.json
+├── employees.json
+├── specialDates.json
+├── gifts.json
+└── shipments.json
+````
 
-Os testes utilizam fixtures de payload, como `validUser.json`, `validEmployee.json`, `validSpecialDate.json`, `validGift.json` e `validShipment.json`.
-
-Para isolamento, `cypress.config.js` lê uma baseline fixa e versionada em:
+Os testes utilizam fixtures para dados reutilizáveis:
 
 ```text
-cypress/fixtures/database/
+cypress/fixtures/
+├── validUser.json
+├── validEmployee.json
+├── validSpecialDate.json
+├── validGift.json
+└── validShipment.json
 ```
 
-O comando `resetData` restaura os cinco arquivos JSON da API para essa baseline. Os specs também executam reset antes dos cenários, e o suporte global restaura os dados após cada teste.
+Também existe uma baseline de dados utilizada pelo comando `cy.resetData()` para restaurar o estado inicial esperado pelos testes.
+
+Os cenários que precisam de dados relacionados criam os registros necessários durante a execução.
+
+Por exemplo, os testes de envio criam:
+
+1. colaborador;
+2. presente;
+3. data especial;
+4. envio.
+
+Dessa forma, o cenário possui os relacionamentos necessários para validar o fluxo.
 
 ---
 
 ## 10. Organização da Automação
+
+A automação está organizada por domínio funcional:
 
 ```text
 cypress/
@@ -197,6 +378,7 @@ cypress/
 │       ├── mimorh-api.cy.js
 │       ├── shipments.cy.js
 │       └── specialDates.cy.js
+│
 ├── fixtures/
 │   ├── database/
 │   ├── validEmployee.json
@@ -204,122 +386,185 @@ cypress/
 │   ├── validShipment.json
 │   ├── validSpecialDate.json
 │   └── validUser.json
+│
 └── support/
     ├── commands.js
     └── e2e.js
 ```
 
-Responsabilidades dos specs:
+### Responsabilidade dos specs
 
-- `mimorh-api.cy.js`: health check e contrato OpenAPI;
-- `auth.cy.js`: cadastro, login e segurança do JWT;
-- `employees.cy.js`: regras e CRUD de colaboradores;
-- `specialDates.cy.js`: regras, CRUD e próximas datas;
-- `gifts.cy.js`: regras e CRUD de presentes;
-- `shipments.cy.js`: criação, consulta e estados de envio.
+| Arquivo              | Cobertura                                                 |
+| -------------------- | --------------------------------------------------------- |
+| `mimorh-api.cy.js`   | Health check e especificação OpenAPI                      |
+| `auth.cy.js`         | Cadastro, login e segurança do JWT                        |
+| `employees.cy.js`    | CRUD, autorização e validações de colaboradores           |
+| `specialDates.cy.js` | Datas especiais, upcoming, CRUD e validações              |
+| `gifts.cy.js`        | Presentes, preços, CRUD e autorização                     |
+| `shipments.cy.js`    | Envios, relacionamentos, autorização e máquina de estados |
 
-Os comandos compartilhados incluem login administrativo, login de usuário comum e reset dos dados.
+Os comandos compartilhados são utilizados para autenticação e preparação dos dados dos cenários.
 
 ---
 
 ## 11. Matriz de Cobertura
 
-| Módulo | Funcionalidade | Cobertura automatizada |
-|---|---|---|
-| Health / OpenAPI | Health check e especificação | `CT-API-001`, `CT-API-045` |
-| Auth | Cadastro, login, JWT e falhas de autenticação | `CT-API-005` a `CT-API-012`, `CT-API-046` |
-| Employees | CRUD, autorização e validações | `CT-API-013` a `CT-API-025`, `CT-API-047` a `CT-API-049` |
-| Special Dates | CRUD, upcoming, relação e validações | `CT-API-026` a `CT-API-029`, `CT-API-050` a `CT-API-054` |
-| Gifts | CRUD, preço e autorização | `CT-API-030` a `CT-API-033`, `CT-API-055` a `CT-API-058` |
-| Shipments | Consulta, criação, relações e máquina de estados | `CT-API-034` a `CT-API-044`, `CT-API-059` a `CT-API-066` |
+| Módulo           | Funcionalidade                                          | Casos automatizados                                      |
+| ---------------- | ------------------------------------------------------- | -------------------------------------------------------- |
+| Health / OpenAPI | Health check e especificação                            | `CT-API-001`, `CT-API-045`                               |
+| Auth             | Cadastro, login, JWT e autenticação                     | `CT-API-005` a `CT-API-012`, `CT-API-046`                |
+| Employees        | CRUD, autorização e validações                          | `CT-API-013` a `CT-API-025`, `CT-API-047` a `CT-API-049` |
+| Special Dates    | Criação, consulta, atualização, exclusão e validações   | `CT-API-026` a `CT-API-029`, `CT-API-050` a `CT-API-054` |
+| Gifts            | Criação, consulta, atualização, exclusão e validações   | `CT-API-030` a `CT-API-033`, `CT-API-055` a `CT-API-058` |
+| Shipments        | Consulta, criação, relacionamentos e máquina de estados | `CT-API-034` a `CT-API-044`, `CT-API-059` a `CT-API-066` |
 
 ---
 
 ## 12. Casos de Teste e Rastreabilidade
 
-Os cenários automatizados usam o padrão `CT-API-XXX` no título de cada teste Cypress.
+Os cenários automatizados utilizam o padrão `CT-API-XXX` diretamente no título dos testes Cypress.
 
-Foram identificados 63 cenários nos specs atuais:
+Atualmente, a suíte possui **63 cenários automatizados**, distribuídos entre os seis arquivos de teste da API.
+
+Os identificadores não são necessariamente sequenciais, pois novos cenários foram adicionados posteriormente aos primeiros casos.
+
+A rastreabilidade é mantida entre:
 
 ```text
-CT-API-001
-CT-API-005 a CT-API-066
+Regra de negócio
+       ↓
+Caso de teste CT-API-XXX
+       ↓
+Teste automatizado Cypress
+       ↓
+Endpoint da API
+       ↓
+Resultado da execução
 ```
 
-Há uma divergência de rastreabilidade: [07-casos-de-teste-da-api.md](07-casos-de-teste-da-api.md) lista somente sete casos (`CT-API-001`, `005`, `012`, `027`, `032`, `036` e `043`), enquanto os seis specs Cypress contêm todos os 63 cenários acima. O padrão de identificação é consistente entre os arquivos, mas o documento de casos ainda não enumera a cobertura completa dos specs.
+Os casos de teste detalhados estão documentados em:
+
+`07-casos-de-teste-da-api.md`
 
 ---
 
-## 13. Testes Não Funcionais
+## 13. Testes de Segurança
 
-### Segurança
+Dentro do escopo da avaliação, a suíte contempla verificações relacionadas à autenticação e autorização.
 
-A suíte verifica aspectos de segurança compatíveis com o escopo de API:
+São testados:
 
-- autenticação por JWT;
-- acesso sem token e com token inválido ou expirado;
-- autorização por role `user` e `admin`;
-- não exposição da senha em cadastro e login;
-- uso de hash bcrypt para credenciais pela API.
+* autenticação utilizando JWT;
+* acesso sem token;
+* token inválido;
+* token expirado;
+* diferenciação entre `user` e `admin`;
+* bloqueio de operações administrativas para usuários comuns;
+* não exposição da senha na resposta do cadastro.
 
-### Contrato e documentação
-
-O contrato OpenAPI é validado por teste automatizado em `GET /api-docs.json`, verificando a versão `3.0.3` e o título `MimoRH API`.
-
-Não há cenários automatizados de desempenho, carga, disponibilidade contínua ou tempo de resposta.
+A suíte não tem como objetivo substituir testes especializados de segurança ou penetration testing.
 
 ---
 
-## 14. Automação e Execução
+## 14. Contrato e Documentação
 
-Os comandos disponíveis em `package.json` são:
+A API disponibiliza sua especificação OpenAPI por meio de:
 
-| Comando | Uso |
-|---|---|
-| `npm start` | Inicia a API. |
-| `npm run dev` | Inicia a API em modo watch. |
-| `npm test` | Executa `npm run cy:run`. |
-| `npm run cy:open` | Abre o Cypress em modo interativo. |
-| `npm run cy:run` | Executa Cypress em modo headless. |
-| `npm run test:api` | Executa os specs de `cypress/e2e/api/**/*.cy.js`. |
+```text
+GET /api-docs.json
+```
 
-Para a execução local dos testes de API, a aplicação deve estar em execução antes do comando Cypress.
+O cenário `CT-API-045` valida:
 
----
+* HTTP 200;
+* versão OpenAPI `3.0.3`;
+* título `MimoRH API`.
 
-## 15. CI/CD
+Esse teste valida a disponibilidade e informações básicas do contrato OpenAPI.
 
-O workflow [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) é executado em `push` e `pull_request`.
-
-O job configurado:
-
-1. executa checkout do repositório;
-2. configura Node.js 22 e cache npm;
-3. executa `npm ci`;
-4. inicia a API;
-5. aguarda `GET /api/health` por até 30 tentativas;
-6. executa `npx cypress run`.
-
-O health check encerra com erro quando a API não fica disponível. A etapa Cypress também faz o workflow falhar caso o comando retorne erro.
+Não são realizados, nesta suíte, testes automatizados completos de todos os schemas, exemplos e respostas documentadas no Swagger.
 
 ---
 
-## 16. Critérios de Aprovação
+## 15. Automação e Execução
 
-Para aprovação da regressão coberta por este plano, espera-se:
+Os testes são executados utilizando Cypress e requisições HTTP por meio de `cy.request()`.
 
-- API iniciada e health check disponível;
-- dados de teste restaurados pela baseline;
-- execução da suíte Cypress;
-- aprovação dos cenários críticos de autenticação, autorização, validações, relacionamentos e máquina de estados;
-- ausência de falhas bloqueadoras nos endpoints cobertos;
-- workflow de CI concluído com sucesso.
+Comandos principais:
+
+| Comando            | Utilização                                          |
+| ------------------ | --------------------------------------------------- |
+| `npm start`        | Inicia a API                                        |
+| `npm run dev`      | Inicia a API em modo watch                          |
+| `npm run cy:open`  | Abre o Cypress em modo interativo                   |
+| `npm run cy:run`   | Executa Cypress em modo headless                    |
+| `npm run test:api` | Executa os testes localizados em `cypress/e2e/api/` |
+
+Para execução dos testes de API:
+
+```bash
+npm run test:api
+```
+
+A aplicação deve estar disponível antes da execução do Cypress.
 
 ---
 
-## 17. Defeitos Conhecidos / Riscos
+## 16. CI/CD
 
-| ID | Descrição | Impacto | Status |
-|---|---|---|---|
-| RSK-01 | `docs/07-casos-de-teste-da-api.md` relaciona sete casos, enquanto os specs Cypress atuais possuem 63 cenários identificados. | A rastreabilidade documental não representa toda a cobertura automatizada. | Aberto |
-| RSK-02 | Os testes restauram arquivos JSON compartilhados em `src/data/`. | Execuções concorrentes sobre o mesmo diretório podem disputar os mesmos arquivos de dados. | Aberto |
+O projeto possui workflow de CI configurado no GitHub Actions.
+
+O fluxo contempla:
+
+1. checkout do repositório;
+2. configuração do Node.js 22;
+3. instalação das dependências com `npm ci`;
+4. inicialização da API;
+5. verificação do health check;
+6. execução da suíte Cypress.
+
+O health check é utilizado para confirmar que a API está disponível antes da execução dos testes.
+
+Caso a API não esteja disponível ou a execução do Cypress retorne erro, o workflow é considerado como falha.
+
+---
+
+## 17. Critérios de Aprovação
+
+Para considerar a regressão coberta por este plano como aprovada, espera-se:
+
+* API disponível;
+* health check respondendo corretamente;
+* dados de teste restaurados;
+* suíte Cypress executada;
+* cenários críticos de autenticação aprovados;
+* cenários de autorização aprovados;
+* principais validações aprovadas;
+* relacionamentos entre recursos funcionando corretamente;
+* máquina de estados dos envios funcionando conforme definida;
+* ausência de falhas bloqueadoras nos endpoints cobertos;
+* execução do CI concluída com sucesso quando aplicável.
+
+---
+
+## 18. Riscos e Observações
+
+| ID     | Descrição                                                               | Impacto                                                                                              |
+| ------ | ----------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| RSK-01 | A persistência da API utiliza arquivos JSON compartilhados.             | Execuções concorrentes podem disputar os mesmos arquivos de dados.                                   |
+| RSK-02 | A suíte depende da disponibilidade da API antes da execução do Cypress. | Caso a API não esteja disponível, os testes não poderão ser executados.                              |
+| RSK-03 | A avaliação não utiliza banco de dados externo.                         | O comportamento validado está limitado à implementação de persistência em JSON utilizada no projeto. |
+
+---
+
+## 19. Resumo da Estratégia
+
+A estratégia de testes da MimoRH API combina testes funcionais positivos e negativos, autenticação, autorização, validações de entrada, regras de negócio, relacionamentos entre recursos e controle de estados.
+
+A automação é realizada com Cypress utilizando requisições HTTP, permitindo validar o comportamento da API sem dependência de uma interface gráfica.
+
+Os casos são identificados por `CT-API-XXX` e documentados separadamente, permitindo rastreabilidade entre os requisitos, os cenários de teste e a automação.
+
+O objetivo da suíte é fornecer uma regressão automatizada simples, organizada e reproduzível para os principais comportamentos da MimoRH API.
+
+
